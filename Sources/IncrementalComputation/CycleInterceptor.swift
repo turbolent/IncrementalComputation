@@ -1,20 +1,31 @@
 /// An interceptor that detects cyclic dependencies.
 /// Throws `CyclicDependencyError` if a query depends on itself (directly or transitively).
+/// Uses the execution context to track the dependency chain per execution.
 public final class CycleInterceptor: QueryInterceptor {
-    private var inProgress: Set<AnyHashable> = []
 
     public init() {}
 
-    public func willFetch(key: AnyHashable) throws -> Any? {
-        if inProgress.contains(key) {
+    public func willFetch(
+        query: AnyHashable,
+        context: ExecutionContext
+    ) throws -> Any? {
+
+        // Check if this query is already in the execution chain
+        if let parent = context.parent,
+            parent.contains(query) {
+
             throw CyclicDependencyError()
         }
-        inProgress.insert(key)
+
         return nil
     }
 
-    public func didCompute(key: AnyHashable, value: Any) {
-        inProgress.remove(key)
+    public func didCompute(
+        query: AnyHashable,
+        value: Any,
+        context: ExecutionContext
+    ) {
+        // No-op
     }
 }
 

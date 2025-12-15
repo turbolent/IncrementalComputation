@@ -2,7 +2,8 @@
 /// Interceptors are executed in order for willFetch, and in reverse order for didCompute.
 /// Thread-safe via actor isolation.
 public actor ComposedEngine: QueryEngine {
-    private let interceptors: [QueryInterceptor]
+
+    public let interceptors: [QueryInterceptor]
 
     /// Creates a composed engine with the given interceptors.
     /// - Parameter interceptors: The interceptors to use, executed in order.
@@ -10,22 +11,48 @@ public actor ComposedEngine: QueryEngine {
         self.interceptors = interceptors
     }
 
-    public func fetch<Q: Query>(_ query: Q) async throws -> Q.Value {
-        let key = AnyHashable(query)
+    /// Fetch a query with a specific execution context.
+    ///
+    /// - Parameters:
+    ///   - query: The query to fetch
+    ///   - context: The execution context containing the current execution chain
+    /// - Returns: The computed or cached value for the query
+    ///
+    public func fetch<Q: Query>(
+        _ query: Q,
+        with parentContext: ExecutionContext
+    ) async throws -> Q.Value {
 
-        // Notify all interceptors before fetching
-        for interceptor in interceptors {
-            if let cached = try interceptor.willFetch(key: key) {
+        let typeErasedQuery = AnyHashable(query)
+
+        let childContext = parentContext.child(for: typeErasedQuery)
+
+        // Notify all interceptors before computation
+
+        for interceptor in self.interceptors {
+            if let cached = try interceptor.willFetch(
+                query: typeErasedQuery,
+                context: childContext
+            ) {
                 return cached as! Q.Value
             }
         }
 
-        // Compute the value
-        let value = try await query.compute(with: self)
+        // Execute the query computation with child context
 
-        // Notify all interceptors after fetching (in reverse order)
-        for interceptor in interceptors.reversed() {
-            interceptor.didCompute(key: key, value: value)
+        let value = try await query.compute(
+            with: self,
+            context: childContext
+        )
+
+        // Notify all interceptors after computation (in reverse order)
+
+        for interceptor in self.interceptors.reversed() {
+            interceptor.didCompute(
+                query: typeErasedQuery,
+                value: value,
+                context: childContext
+            )
         }
 
         return value

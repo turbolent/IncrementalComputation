@@ -5,31 +5,38 @@ public final class CacheInterceptor: QueryInterceptor {
 
     public init() {}
 
-    public func willFetch(key: AnyHashable) throws -> Any? {
-        return cache[key]
+    public func willFetch(
+        query: AnyHashable,
+        context: ExecutionContext
+    ) throws -> Any? {
+        return self.cache[query]
     }
 
-    public func didCompute(key: AnyHashable, value: Any) {
-        cache[key] = value
+    public func didCompute(
+        query: AnyHashable,
+        value: Any,
+        context: ExecutionContext
+    ) {
+        self.cache[query] = value
     }
 
     /// Clears all cached values.
     public func clear() {
-        cache.removeAll()
+        self.cache.removeAll()
     }
 
     /// Clears a specific cached value.
-    public func clear(key: AnyHashable) {
-        cache.removeValue(forKey: key)
+    public func clear(query: AnyHashable) {
+        self.cache.removeValue(forKey: query)
     }
 
     /// Checks if a query is cached.
-    public func isCached(key: AnyHashable) -> Bool {
-        return cache[key] != nil
+    public func isCached(query: AnyHashable) -> Bool {
+        return self.cache[query] != nil
     }
 
     /// Number of cached queries.
     public var count: Int {
-        return cache.count
+        return self.cache.count
     }
 }

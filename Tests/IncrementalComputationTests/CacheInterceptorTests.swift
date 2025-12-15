@@ -4,13 +4,16 @@ import IncrementalComputation
 final class CacheInterceptorTests: XCTestCase {
 
     func testMemoization() async throws {
-        let counter = Counter()
 
-        struct CountingQuery: Query, Hashable {
+        struct CountingQuery: Query {
             typealias Value = Int
+
             let counter: Counter
 
-            func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+            func compute<E: QueryEngine>(
+                with engine: E,
+                context: ExecutionContext
+            ) async throws -> Int {
                 counter.count += 1
                 return 42
             }
@@ -24,23 +27,32 @@ final class CacheInterceptorTests: XCTestCase {
             }
         }
 
-        let engine = ComposedEngine(interceptors: [CacheInterceptor()])
+        let engine = ComposedEngine(
+            interceptors: [
+                CacheInterceptor()
+            ]
+        )
 
-        _ = try await engine.fetch(CountingQuery(counter: counter))
-        _ = try await engine.fetch(CountingQuery(counter: counter))
-        _ = try await engine.fetch(CountingQuery(counter: counter))
+        let counter = Counter()
+
+        _ = try await engine.fetch(CountingQuery(counter: counter), with: .root)
+        _ = try await engine.fetch(CountingQuery(counter: counter), with: .root)
+        _ = try await engine.fetch(CountingQuery(counter: counter), with: .root)
 
         XCTAssertEqual(counter.count, 1)  // Should only compute once
     }
 
     func testMemoizationWithDependencies() async throws {
-        let counter = Counter()
 
-        struct CountingBase: Query, Hashable {
+        struct CountingBase: Query {
             typealias Value = Int
+
             let counter: Counter
 
-            func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+            func compute<E: QueryEngine>(
+                with engine: E,
+                context: ExecutionContext
+            ) async throws -> Int {
                 counter.count += 1
                 return 10
             }
@@ -54,12 +66,21 @@ final class CacheInterceptorTests: XCTestCase {
             }
         }
 
-        struct DerivedA: Query, Hashable {
+        struct DerivedA: Query {
             typealias Value = Int
+
             let counter: Counter
 
-            func compute<E: QueryEngine>(with engine: E) async throws -> Int {
-                return try await engine.fetch(CountingBase(counter: counter)) + 1
+            func compute<E: QueryEngine>(
+                with engine: E,
+                context: ExecutionContext
+            ) async throws -> Int {
+
+                let value = try await engine.fetch(
+                    CountingBase(counter: counter),
+                    with: context
+                )
+                return value + 1
             }
 
             func hash(into hasher: inout Hasher) {
@@ -71,12 +92,21 @@ final class CacheInterceptorTests: XCTestCase {
             }
         }
 
-        struct DerivedB: Query, Hashable {
+        struct DerivedB: Query {
             typealias Value = Int
+
             let counter: Counter
 
-            func compute<E: QueryEngine>(with engine: E) async throws -> Int {
-                return try await engine.fetch(CountingBase(counter: counter)) + 2
+            func compute<E: QueryEngine>(
+                with engine: E,
+                context: ExecutionContext
+            ) async throws -> Int {
+
+                let value = try await engine.fetch(
+                    CountingBase(counter: counter),
+                    with: context
+                )
+                return value + 2
             }
 
             func hash(into hasher: inout Hasher) {
@@ -88,12 +118,17 @@ final class CacheInterceptorTests: XCTestCase {
             }
         }
 
-        let engine = ComposedEngine(interceptors: [CacheInterceptor()])
+        let engine = ComposedEngine(
+            interceptors: [
+                CacheInterceptor()
+            ]
+        )
 
-        _ = try await engine.fetch(DerivedA(counter: counter))
-        _ = try await engine.fetch(DerivedB(counter: counter))
+        let counter = Counter()
+
+        _ = try await engine.fetch(DerivedA(counter: counter), with: .root)
+        _ = try await engine.fetch(DerivedB(counter: counter), with: .root)
 
         XCTAssertEqual(counter.count, 1)  // Base should only compute once
     }
-
 }

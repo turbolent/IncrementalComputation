@@ -4,10 +4,14 @@ import IncrementalComputation
 final class CycleInterceptorTests: XCTestCase {
 
     func testCycleDetection() async throws {
-        let engine = ComposedEngine(interceptors: [CycleInterceptor()])
+        let engine = ComposedEngine(
+            interceptors: [
+                CycleInterceptor()
+            ]
+        )
 
         do {
-            _ = try await engine.fetch(CyclicQueryA())
+            _ = try await engine.fetch(CyclicQueryA(), with: .root)
             XCTFail("Expected CyclicDependencyError")
         } catch is CyclicDependencyError {
             // Expected
@@ -17,10 +21,14 @@ final class CycleInterceptorTests: XCTestCase {
     }
 
     func testSelfReferentialCycleDetection() async throws {
-        let engine = ComposedEngine(interceptors: [CycleInterceptor()])
+        let engine = ComposedEngine(
+            interceptors: [
+                CycleInterceptor()
+            ]
+        )
 
         do {
-            _ = try await engine.fetch(SelfReferentialQuery())
+            _ = try await engine.fetch(SelfReferentialQuery(), with: .root)
             XCTFail("Expected CyclicDependencyError")
         } catch is CyclicDependencyError {
             // Expected
@@ -30,8 +38,12 @@ final class CycleInterceptorTests: XCTestCase {
     }
 
     func testNoCycleWithValidQuery() async throws {
-        let engine = ComposedEngine(interceptors: [CycleInterceptor()])
-        let result = try await engine.fetch(DerivedQuery())
+        let engine = ComposedEngine(
+            interceptors: [
+                CycleInterceptor()
+            ]
+        )
+        let result = try await engine.fetch(DerivedQuery(), with: .root)
         XCTAssertEqual(result, 15)
     }
 

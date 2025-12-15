@@ -7,7 +7,10 @@ import IncrementalComputation
 struct CellA: Query {
     typealias Value = Int
 
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+    func compute<E: QueryEngine>(
+        with engine: E,
+        context: ExecutionContext
+    ) async throws -> Int {
         print("Fetching A")
         return 10
     }
@@ -16,9 +19,12 @@ struct CellA: Query {
 struct CellB: Query {
     typealias Value = Int
 
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+    func compute<E: QueryEngine>(
+        with engine: E,
+        context: ExecutionContext
+    ) async throws -> Int {
         print("Fetching B")
-        let a = try await engine.fetch(CellA())
+        let a = try await engine.fetch(CellA(), with: context)
         return a + 20
     }
 }
@@ -26,9 +32,12 @@ struct CellB: Query {
 struct CellC: Query {
     typealias Value = Int
 
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+    func compute<E: QueryEngine>(
+        with engine: E,
+        context: ExecutionContext
+    ) async throws -> Int {
         print("Fetching C")
-        let a = try await engine.fetch(CellA())
+        let a = try await engine.fetch(CellA(), with: context)
         return a + 30
     }
 }
@@ -36,10 +45,13 @@ struct CellC: Query {
 struct CellD: Query {
     typealias Value = Int
 
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+    func compute<E: QueryEngine>(
+        with engine: E,
+        context: ExecutionContext
+    ) async throws -> Int {
         print("Fetching D")
-        let b = try await engine.fetch(CellB())
-        let c = try await engine.fetch(CellC())
+        let b = try await engine.fetch(CellB(), with: context)
+        let c = try await engine.fetch(CellC(), with: context)
         return b + c
     }
 }
@@ -52,14 +64,18 @@ struct SpreadsheetExample {
         // Run without memoization - A will be fetched multiple times
         print("=== Running without memoization ===")
         let basicEngine = ComposedEngine(interceptors: [])
-        let result1 = try await basicEngine.fetch(CellD())
+        let result1 = try await basicEngine.fetch(CellD(), with: .root)
         print("Result: D = \(result1)")
         print()
 
         // Run with memoization - A will only be fetched once
         print("=== Running with memoization ===")
-        let memoEngine = ComposedEngine(interceptors: [CacheInterceptor()])
-        let result2 = try await memoEngine.fetch(CellD())
+        let memoEngine = ComposedEngine(
+            interceptors: [
+                CacheInterceptor()
+            ]
+        )
+        let result2 = try await memoEngine.fetch(CellD(), with: .root)
         print("Result: D = \(result2)")
         print()
 
@@ -67,7 +83,7 @@ struct SpreadsheetExample {
         print("=== Running with tracking ===")
         let tracker = TrackingInterceptor()
         let trackingEngine = ComposedEngine(interceptors: [tracker])
-        let result3 = try await trackingEngine.fetch(CellD())
+        let result3 = try await trackingEngine.fetch(CellD(), with: .root)
         print("Result: D = \(result3)")
         print("Fetched \(tracker.count) unique queries")
         print()
@@ -75,12 +91,14 @@ struct SpreadsheetExample {
         // Run with full incremental engine (cycle detection + memoization + reverse deps)
         print("=== Running with full incremental engine ===")
         let cache = CacheInterceptor()
-        let incrementalEngine = ComposedEngine(interceptors: [
-            CycleInterceptor(),
-            cache,
-            ReverseDepsInterceptor()
-        ])
-        let result4 = try await incrementalEngine.fetch(CellD())
+        let incrementalEngine = ComposedEngine(
+            interceptors: [
+                CycleInterceptor(),
+                cache,
+                ReverseDepsInterceptor()
+            ]
+        )
+        let result4 = try await incrementalEngine.fetch(CellD(), with: .root)
         print("Result: D = \(result4)")
         print("Cached \(cache.count) queries")
     }

@@ -4,5 +4,11 @@ public protocol Query: Hashable {
 
     /// Computes the value for this query.
     /// Use `engine.fetch()` to fetch dependent queries.
-    func compute<E: QueryEngine>(with engine: E) async throws -> Value
+    /// - Parameters:
+    ///   - engine: The query engine to use for fetching dependencies
+    ///   - context: The execution context containing the current execution chain
+    func compute<E: QueryEngine>(
+        with engine: E,
+        context: ExecutionContext
+    ) async throws -> Value
 }

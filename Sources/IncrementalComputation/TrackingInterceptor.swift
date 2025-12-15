@@ -1,36 +1,39 @@
 /// An interceptor that tracks which queries are fetched.
 /// Useful for debugging and testing to see what queries were executed.
 public final class TrackingInterceptor: QueryInterceptor {
-    private var fetchedQueries: Set<AnyHashable> = []
+
+    public private(set) var fetchedQueries: Set<AnyHashable> = []
 
     public init() {}
 
-    public func willFetch(key: AnyHashable) throws -> Any? {
-        fetchedQueries.insert(key)
+    public func willFetch(
+        query: AnyHashable,
+        context: ExecutionContext
+    ) throws -> Any? {
+        self.fetchedQueries.insert(query)
         return nil
     }
 
-    public func didCompute(key: AnyHashable, value: Any) {
-        // No action needed on completion
-    }
-
-    /// Returns all queries that have been fetched.
-    public var fetched: Set<AnyHashable> {
-        return fetchedQueries
+    public func didCompute(
+        query: AnyHashable,
+        value: Any,
+        context: ExecutionContext
+    ) {
+        // No-op
     }
 
     /// Checks if a specific query was fetched.
-    public func wasFetched(key: AnyHashable) -> Bool {
-        return fetchedQueries.contains(key)
+    public func wasFetched(query: AnyHashable) -> Bool {
+        return self.fetchedQueries.contains(query)
     }
 
     /// Returns the count of fetched queries.
     public var count: Int {
-        return fetchedQueries.count
+        return self.fetchedQueries.count
     }
 
     /// Resets tracking.
     public func reset() {
-        fetchedQueries.removeAll()
+        self.fetchedQueries.removeAll()
     }
 }

@@ -23,9 +23,10 @@ import IncrementalComputation
 
 struct GetUser: Query {
     typealias Value = User
+
     let id: Int
 
-    func compute<E: QueryEngine>(with engine: E) async throws -> User {
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> User {
         // Fetch from database, API, etc.
         return User(id: id, name: "User \(id)")
     }
@@ -35,9 +36,9 @@ struct GetPosts: Query {
     typealias Value = [Post]
     let userId: Int
 
-    func compute<E: QueryEngine>(with engine: E) async throws -> [Post] {
-        // Can depend on other queries
-        let user = try await engine.fetch(GetUser(id: userId))
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> [Post] {
+        // Can depend on other queries - context is passed through
+        let user = try await engine.fetch(GetUser(id: userId), with: context)
         return [Post(author: user.name, title: "Hello")]
     }
 }
@@ -62,7 +63,8 @@ let incremental = ComposedEngine(interceptors: [
     ReverseDepsInterceptor()
 ])
 
-let user = try await incremental.fetch(GetUser(id: 1))
+// Fetch queries - pass .root context for top-level calls
+let user = try await incremental.fetch(GetUser(id: 1), with: .root)
 ```
 
 ## API Reference
@@ -74,9 +76,12 @@ A query defines a request for a value and how to compute it.
 ```swift
 protocol Query: Hashable {
     associatedtype Value
-    func compute<E: QueryEngine>(with engine: E) async throws -> Value
+
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Value
 }
 ```
+
+**Important**: Always pass the `context` parameter to nested `fetch` calls to maintain the execution chain.
 
 ### `QueryEngine`
 
@@ -84,7 +89,22 @@ An engine executes queries.
 
 ```swift
 protocol QueryEngine {
-    func fetch<Q: Query>(_ query: Q) async throws -> Q.Value
+    func fetch<Q: Query>(_ query: Q, with context: ExecutionContext) async throws -> Q.Value
+}
+```
+
+### `ExecutionContext`
+
+Tracks the current query execution chain for cycle detection and dependency tracking.
+
+```swift
+// Top-level calls use .root
+let result = try await engine.fetch(MyQuery(), with: .root)
+
+// Nested calls pass the context through
+func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Value {
+    let dep = try await engine.fetch(Dependency(), with: context)
+    return process(dep)
 }
 ```
 
@@ -109,9 +129,9 @@ let engine = ComposedEngine(interceptors: [
 Protocol for interceptors that can modify query execution:
 
 ```swift
-protocol QueryInterceptor: AnyObject {
-    func willFetch(key: AnyHashable) throws -> Any?
-    func didCompute(key: AnyHashable, value: Any)
+protocol QueryInterceptor {
+    func willFetch(query: AnyHashable, context: ExecutionContext) throws -> Any?
+    func didCompute(query: AnyHashable, value: Any, context: ExecutionContext)
 }
 ```
 
@@ -123,11 +143,11 @@ Caches query results (memoization):
 let cache = CacheInterceptor()
 let engine = ComposedEngine(interceptors: [cache])
 
-_ = try await engine.fetch(MyQuery())
-_ = try await engine.fetch(MyQuery())  // Returns cached result
+_ = try await engine.fetch(MyQuery(), with: .root)
+_ = try await engine.fetch(MyQuery(), with: .root)  // Returns cached result
 
-cache.isCached(key: AnyHashable(MyQuery()))  // true
-cache.count  // 1
+let isCached = cache.isCached(query: AnyHashable(MyQuery()))  // true
+let count = cache.count   // 1
 cache.clear()  // Clear all cached values
 ```
 
@@ -139,7 +159,7 @@ Detects cyclic dependencies and throws `CyclicDependencyError`:
 let engine = ComposedEngine(interceptors: [CycleInterceptor()])
 
 do {
-    _ = try await engine.fetch(SelfReferentialQuery())
+    _ = try await engine.fetch(SelfReferentialQuery(), with: .root)
 } catch is CyclicDependencyError {
     print("Cycle detected!")
 }
@@ -154,16 +174,16 @@ let reverseDeps = ReverseDepsInterceptor()
 let cache = CacheInterceptor()
 let engine = ComposedEngine(interceptors: [cache, reverseDeps])
 
-_ = try await engine.fetch(CellD())  // D depends on B, C; B, C depend on A
+_ = try await engine.fetch(CellD(), with: .root)  // D depends on B, C; B, C depend on A
 
 // Find all queries that depend on A
 let dependents = reverseDeps.dependents(of: AnyHashable(CellA()))
 // Returns: {B, C, D}
 
 // Invalidate A and all its dependents
-let invalidated = reverseDeps.invalidate(key: AnyHashable(CellA()))
-for key in invalidated {
-    cache.clear(key: key)
+let invalidated = reverseDeps.invalidate(query: AnyHashable(CellA()))
+for query in invalidated {
+    cache.clear(query: query)
 }
 ```
 
@@ -175,10 +195,10 @@ Records which queries were fetched (useful for debugging/testing):
 let tracker = TrackingInterceptor()
 let engine = ComposedEngine(interceptors: [tracker])
 
-_ = try await engine.fetch(CellD())
+_ = try await engine.fetch(CellD(), with: .root)
 
 tracker.count  // Number of unique queries fetched
-tracker.wasFetched(key: AnyHashable(CellA()))  // true
+tracker.wasFetched(query: AnyHashable(CellA()))  // true
 tracker.reset()  // Clear tracking
 ```
 
@@ -187,14 +207,14 @@ tracker.reset()  // Clear tracking
 Create your own interceptor by implementing `QueryInterceptor`:
 
 ```swift
-class LoggingInterceptor: QueryInterceptor {
-    func willFetch(key: AnyHashable) throws -> Any? {
-        print("Fetching: \(key)")
+final class LoggingInterceptor: QueryInterceptor {
+    func willFetch(query: AnyHashable, context: ExecutionContext) throws -> Any? {
+        print("Fetching: \(query)")
         return nil  // Continue with computation
     }
 
-    func didCompute(key: AnyHashable, value: Any) {
-        print("Computed: \(key) = \(value)")
+    func didCompute(query: AnyHashable, value: Any, context: ExecutionContext) {
+        print("Computed: \(query) = \(value)")
     }
 }
 
@@ -222,9 +242,9 @@ ComposedEngine(interceptors: [
 **Why this order:**
 1. `CycleInterceptor` first - detect cycles before any other processing
 2. `CacheInterceptor` second - return cached values early to avoid unnecessary work
-3. `ReverseDepsInterceptor` last - manages internal stack that requires matched `willFetch`/`didCompute` calls
+3. `ReverseDepsInterceptor` last - manages internal tracking that requires matched `willFetch`/`didCompute` calls
 
-**Note:** With this order, cached queries won't have new dependencies recorded.
+With this order, cached queries won't have new dependencies recorded.
 This is typically fine since dependencies are established during first computation and rebuilt after invalidation.
 
 
@@ -233,41 +253,47 @@ This is typically fine since dependencies are established during first computati
 ```swift
 struct CellA: Query {
     typealias Value = Int
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
+
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
         return 10
     }
 }
 
 struct CellB: Query {
     typealias Value = Int
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
-        return try await engine.fetch(CellA()) + 20
+
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
+        let a = try await engine.fetch(CellA(), with: context)
+        return a + 20
     }
 }
 
 struct CellC: Query {
     typealias Value = Int
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
-        return try await engine.fetch(CellA()) + 30
+
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
+        let a = try await engine.fetch(CellA(), with: context)
+        return a + 30
     }
 }
 
 struct CellD: Query {
     typealias Value = Int
-    func compute<E: QueryEngine>(with engine: E) async throws -> Int {
-        let b = try await engine.fetch(CellB())
-        let c = try await engine.fetch(CellC())
+
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
+        let b = try await engine.fetch(CellB(), with: context)
+        let c = try await engine.fetch(CellC(), with: context)
         return b + c
     }
 }
 
 // Without memoization: CellA computed twice
 let basic = ComposedEngine(interceptors: [])
-let result1 = try await basic.fetch(CellD())  // 70
+let result1 = try await basic.fetch(CellD(), with: .root)  // 70
 
 // With memoization: CellA computed once
 let cached = ComposedEngine(interceptors: [CacheInterceptor()])
-let result2 = try await cached.fetch(CellD())  // 70
+let result2 = try await cached.fetch(CellD(), with: .root)  // 70
 ```
 
 ## Running Tests and Examples
