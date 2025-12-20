@@ -207,12 +207,54 @@ await tracker.wasFetched(query: AnyHashable(CellA()))  // true
 await tracker.reset()  // Clear tracking
 ```
 
+### `InFlightInterceptor`
+
+Deduplicates concurrent fetches of the same query.
+When multiple tasks fetch the same query simultaneously,
+only the first performs the computation while others wait for and share the result:
+
+```swift
+let inFlight = InFlightInterceptor()
+let engine = ComposedEngine(interceptors: [inFlight])
+
+// Launch 5 concurrent fetches of the same expensive query
+async let r1 = engine.fetch(ExpensiveQuery(), with: .root)
+async let r2 = engine.fetch(ExpensiveQuery(), with: .root)
+async let r3 = engine.fetch(ExpensiveQuery(), with: .root)
+async let r4 = engine.fetch(ExpensiveQuery(), with: .root)
+async let r5 = engine.fetch(ExpensiveQuery(), with: .root)
+
+let results = try await (r1, r2, r3, r4, r5)
+// ExpensiveQuery computed only once, all 5 calls get the same result
+```
+
+**Use Cases:**
+- Expensive queries (database, API calls) that might be triggered multiple times concurrently
+- Queries with shared dependencies that execute in parallel
+- Preventing redundant work in highly concurrent scenarios
+
+**Ordering with CacheInterceptor:**
+```swift
+// Option 1: Cache before InFlight (recommended)
+// Cached values served immediately, only non-cached queries deduplicated
+ComposedEngine(interceptors: [CacheInterceptor(), InFlightInterceptor()])
+
+// Option 2: InFlight before Cache
+// All concurrent fetches deduplicated first, then cached
+ComposedEngine(interceptors: [InFlightInterceptor(), CacheInterceptor()])
+```
+
+**Note:** InFlightInterceptor only deduplicates _concurrent_ fetches.
+Sequential fetches of the same query will compute independently.
+Use `CacheInterceptor` for persistent memoization across sequential calls.
+
 ### Custom Interceptors
 
 Create your own interceptor by implementing `QueryInterceptor` as an actor:
 
 ```swift
 actor LoggingInterceptor: QueryInterceptor {
+
     func willFetch(query: AnyHashable, context: ExecutionContext) async throws -> Any? {
         print("Fetching: \(query)")
         return nil  // Continue with computation
