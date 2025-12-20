@@ -12,10 +12,6 @@ jobs:
     name: macOS
     runs-on: macos-15
     steps:
-    - name: Select Xcode 16.4
-      run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
-    - name: Get swift version
-      run: swift --version
     - uses: actions/checkout@v4
     - name: Build
       run: swift build -v
