@@ -1,6 +1,6 @@
 /// An interceptor that tracks which queries are fetched.
 /// Useful for debugging and testing to see what queries were executed.
-public final class TrackingInterceptor: QueryInterceptor {
+public actor TrackingInterceptor: QueryInterceptor {
 
     public private(set) var fetchedQueries: Set<AnyHashable> = []
 
@@ -9,7 +9,7 @@ public final class TrackingInterceptor: QueryInterceptor {
     public func willFetch(
         query: AnyHashable,
         context: ExecutionContext
-    ) throws -> Any? {
+    ) async throws -> Any? {
         self.fetchedQueries.insert(query)
         return nil
     }
@@ -18,7 +18,7 @@ public final class TrackingInterceptor: QueryInterceptor {
         query: AnyHashable,
         value: Any,
         context: ExecutionContext
-    ) {
+    ) async {
         // No-op
     }
 

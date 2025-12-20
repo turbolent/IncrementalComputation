@@ -85,7 +85,7 @@ struct SpreadsheetExample {
         let trackingEngine = ComposedEngine(interceptors: [tracker])
         let result3 = try await trackingEngine.fetch(CellD(), with: .root)
         print("Result: D = \(result3)")
-        print("Fetched \(tracker.count) unique queries")
+        print("Fetched \(await tracker.count) unique queries")
         print()
 
         // Run with full incremental engine (cycle detection + memoization + reverse deps)
@@ -100,6 +100,6 @@ struct SpreadsheetExample {
         )
         let result4 = try await incrementalEngine.fetch(CellD(), with: .root)
         print("Result: D = \(result4)")
-        print("Cached \(cache.count) queries")
+        print("Cached \(await cache.count) queries")
     }
 }

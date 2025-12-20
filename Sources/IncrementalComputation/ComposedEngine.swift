@@ -30,7 +30,7 @@ public actor ComposedEngine: QueryEngine {
         // Notify all interceptors before computation
 
         for interceptor in self.interceptors {
-            if let cached = try interceptor.willFetch(
+            if let cached = try await interceptor.willFetch(
                 query: typeErasedQuery,
                 context: childContext
             ) {
@@ -48,7 +48,7 @@ public actor ComposedEngine: QueryEngine {
         // Notify all interceptors after computation (in reverse order)
 
         for interceptor in self.interceptors.reversed() {
-            interceptor.didCompute(
+            await interceptor.didCompute(
                 query: typeErasedQuery,
                 value: value,
                 context: childContext

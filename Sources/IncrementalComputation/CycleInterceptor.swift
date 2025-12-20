@@ -1,14 +1,14 @@
 /// An interceptor that detects cyclic dependencies.
 /// Throws `CyclicDependencyError` if a query depends on itself (directly or transitively).
 /// Uses the execution context to track the dependency chain per execution.
-public final class CycleInterceptor: QueryInterceptor {
+public actor CycleInterceptor: QueryInterceptor {
 
     public init() {}
 
     public func willFetch(
         query: AnyHashable,
         context: ExecutionContext
-    ) throws -> Any? {
+    ) async throws -> Any? {
 
         // Check if this query is already in the execution chain
         if let parent = context.parent,

@@ -1,6 +1,6 @@
 /// An interceptor that caches query results (memoization).
 /// Returns cached values on subsequent fetches of the same query.
-public final class CacheInterceptor: QueryInterceptor {
+public actor CacheInterceptor: QueryInterceptor {
     private var cache: [AnyHashable: Any] = [:]
 
     public init() {}
@@ -8,7 +8,7 @@ public final class CacheInterceptor: QueryInterceptor {
     public func willFetch(
         query: AnyHashable,
         context: ExecutionContext
-    ) throws -> Any? {
+    ) async throws -> Any? {
         return self.cache[query]
     }
 
@@ -16,7 +16,7 @@ public final class CacheInterceptor: QueryInterceptor {
         query: AnyHashable,
         value: Any,
         context: ExecutionContext
-    ) {
+    ) async {
         self.cache[query] = value
     }
 

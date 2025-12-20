@@ -185,7 +185,8 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results.5, 30)
 
         // Verify cache is in consistent state
-        XCTAssertEqual(cache.count, 4) // 1, 2, 3, 4
+        let count = await cache.count
+        XCTAssertEqual(count, 4) // 1, 2, 3, 4
     }
 
     // MARK: - Parallel Execution with Reverse Deps Tests
@@ -204,7 +205,7 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results.1, 11)
 
         // Verify reverse dependencies were tracked correctly
-        let dependentsOfA = reverseDeps.dependents(of: AnyHashable(IncA()))
+        let dependentsOfA = await reverseDeps.dependents(of: AnyHashable(IncA()))
         XCTAssertTrue(dependentsOfA.contains(AnyHashable(IncB())))
         XCTAssertTrue(dependentsOfA.contains(AnyHashable(IncC())))
     }
@@ -212,7 +213,11 @@ final class ParallelExecutionTests: XCTestCase {
     // MARK: - No Deadlock on Cycles Tests
 
     func testNoCycleDeadlockInParallel() async throws {
-        let engine = ComposedEngine(interceptors: [CycleInterceptor()])
+        let engine = ComposedEngine(
+            interceptors: [
+                CycleInterceptor()
+            ]
+        )
 
         // Start multiple independent cyclic queries concurrently
         // Each should fail with CyclicDependencyError without deadlock

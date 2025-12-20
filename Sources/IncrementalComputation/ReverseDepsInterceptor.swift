@@ -1,7 +1,7 @@
 /// An interceptor that tracks reverse dependencies.
 /// When query A depends on B, this records that B has A as a reverse dependency.
 /// This enables efficient invalidation: "what queries need recomputing if X changes?"
-public final class ReverseDepsInterceptor: QueryInterceptor {
+public actor ReverseDepsInterceptor: QueryInterceptor {
 
     /// Reverse dependency graph: dependency -> set of dependents.
     /// If reverseDeps[B] contains A, it means A depends on B.
@@ -12,7 +12,7 @@ public final class ReverseDepsInterceptor: QueryInterceptor {
     public func willFetch(
         query: AnyHashable,
         context: ExecutionContext
-    ) throws -> Any? {
+    ) async throws -> Any? {
         // If we're inside another computation, record the reverse dependency
         if let parent = context.parent {
             // parent depends on query, so query -> parent is a reverse dependency
@@ -25,7 +25,7 @@ public final class ReverseDepsInterceptor: QueryInterceptor {
         query: AnyHashable,
         value: Any,
         context: ExecutionContext
-    ) {
+    ) async {
         // No-op
     }
 

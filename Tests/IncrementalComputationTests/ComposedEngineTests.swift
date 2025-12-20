@@ -37,10 +37,17 @@ final class ComposedEngineTests: XCTestCase {
         XCTAssertEqual(result2, 111)
 
         // Verify caching worked: A, B, C all cached
-        XCTAssertEqual(cache.count, 3)
-        XCTAssert(cache.isCached(query: AnyHashable(IncA())))
-        XCTAssert(cache.isCached(query: AnyHashable(IncB())))
-        XCTAssert(cache.isCached(query: AnyHashable(IncC())))
+        let cachedCount = await cache.count
+        XCTAssertEqual(cachedCount, 3)
+
+        let aCached = await cache.isCached(query: AnyHashable(IncA()))
+        XCTAssert(aCached)
+
+        let bCached = await cache.isCached(query: AnyHashable(IncB()))
+        XCTAssert(bCached)
+
+        let cCached = await cache.isCached(query: AnyHashable(IncC()))
+        XCTAssert(cCached)
     }
 
     func testIncrementalEngineWithCycleDetection() async throws {
