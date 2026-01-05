@@ -32,7 +32,7 @@ public actor ComposedEngine: QueryEngine {
         for interceptor in self.interceptors {
             if let cached = try await interceptor.willFetch(
                 query: typeErasedQuery,
-                context: childContext
+                context: parentContext
             ) {
                 return cached as! Q.Value
             }

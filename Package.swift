@@ -9,9 +9,18 @@ let package = Package(
             name: "IncrementalComputation",
             targets: ["IncrementalComputation"]),
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/apple/swift-collections",
+            .upToNextMinor(from: "1.3.0")
+        )
+    ],
     targets: [
         .target(
             name: "IncrementalComputation",
+            dependencies: [
+                .product(name: "HashTreeCollections", package: "swift-collections")
+            ],
             path: "Sources/IncrementalComputation"
         ),
         .testTarget(

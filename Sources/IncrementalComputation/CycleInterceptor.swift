@@ -11,9 +11,7 @@ public actor CycleInterceptor: QueryInterceptor {
     ) async throws -> Any? {
 
         // Check if this query is already in the execution chain
-        if let parent = context.parent,
-            parent.contains(query) {
-
+        if context.contains(query) {
             throw CyclicDependencyError()
         }
 
