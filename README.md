@@ -108,6 +108,26 @@ func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async th
 }
 ```
 
+To cancel a long-running computation graph, wrap the fetch in a `Task`
+and use `Task.checkCancellation()` inside long-running queries:
+
+```swift
+let task = Task {
+    try await engine.fetch(MyQuery(), with: .root)
+}
+
+task.cancel()
+
+struct MyQuery: Query {
+    func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
+        while true {
+            try Task.checkCancellation()
+            // do work
+        }
+    }
+}
+```
+
 ### `ComposedEngine`
 
 A composable engine that uses interceptors to provide different behaviors:
