@@ -13,10 +13,10 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
         query: AnyHashable,
         context: ExecutionContext
     ) async throws -> Any? {
-        // If we're inside another computation, record the reverse dependency
-        if let parent = context.parent {
-            // parent depends on query, so query -> parent is a reverse dependency
-            self.reverseDeps[query, default: []].insert(parent.query)
+        // If we're inside another query,
+        // record the reverse dependency to the immediate parent query
+        if let parent = context.parentQuery {
+            self.reverseDeps[query, default: []].insert(parent)
         }
         return nil
     }

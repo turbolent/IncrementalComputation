@@ -1,40 +1,41 @@
+import HashTreeCollections
+
 /// Context passed through query execution chains.
-public final class ExecutionContext {
+public struct ExecutionContext {
 
     public static let root = ExecutionContext(
-        parent: nil,
-        // Sentinel value for root context. Any value that is not a query
-        query: AnyHashable(0)
+        queries: TreeSet(),
+        parentQuery: nil
     )
 
-    public let parent: ExecutionContext?
-    public let query: AnyHashable
+    /// Persistent set of all queries in the current execution chain.
+    /// Used for fast cycle checks without walking a linked list.
+    public let queries: TreeSet<AnyHashable>
+
+    /// The most recent query in the chain (the immediate parent for child work).
+    /// Used for O(1) reverse-dependency tracking without iterating the set.
+    public let parentQuery: AnyHashable?
 
     public init(
-        parent: ExecutionContext?,
-        query: AnyHashable
+        queries: TreeSet<AnyHashable>,
+        parentQuery: AnyHashable?
     ) {
-        self.parent = parent
-        self.query = query
+        self.queries = queries
+        self.parentQuery = parentQuery
     }
 
     /// Checks if the given query is already in the execution chain
     public func contains(_ query: AnyHashable) -> Bool {
-        var current: ExecutionContext? = self
-        while let context = current {
-            if context.query == query {
-                return true
-            }
-            current = context.parent
-        }
-        return false
+        return self.queries.contains(query)
     }
 
     /// Create a child context for a nested query
     public func child(for query: AnyHashable) -> ExecutionContext {
+        var updated = self.queries
+        updated.insert(query)
         return ExecutionContext(
-            parent: self,
-            query: query
+            queries: updated,
+            parentQuery: query
         )
     }
 }
