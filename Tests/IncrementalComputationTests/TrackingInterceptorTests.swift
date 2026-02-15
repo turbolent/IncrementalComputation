@@ -14,10 +14,10 @@ final class TrackingInterceptorTests: XCTestCase {
 
         _ = try await engine.fetch(DerivedQuery(), with: .root)
 
-        let derivedWasFetched = await tracker.wasFetched(query: AnyHashable(DerivedQuery()))
+        let derivedWasFetched = await tracker.wasFetched(query: QueryKey(DerivedQuery()))
         XCTAssertTrue(derivedWasFetched)
 
-        let baseWasFetched = await tracker.wasFetched(query: AnyHashable(BaseQuery()))
+        let baseWasFetched = await tracker.wasFetched(query: QueryKey(BaseQuery()))
         XCTAssertTrue(baseWasFetched)
 
         let count = await tracker.count

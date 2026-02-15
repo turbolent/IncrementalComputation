@@ -74,7 +74,7 @@ final class ParallelExecutionTests: XCTestCase {
             let counter: Counter
 
             func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 try await Task.sleep(nanoseconds: 1_000_000_000) // 1s
                 return 10
             }
@@ -205,9 +205,9 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results.1, 11)
 
         // Verify reverse dependencies were tracked correctly
-        let dependentsOfA = await reverseDeps.dependents(of: AnyHashable(IncA()))
-        XCTAssertTrue(dependentsOfA.contains(AnyHashable(IncB())))
-        XCTAssertTrue(dependentsOfA.contains(AnyHashable(IncC())))
+        let dependentsOfA = await reverseDeps.dependents(of: QueryKey(IncA()))
+        XCTAssertTrue(dependentsOfA.contains(QueryKey(IncB())))
+        XCTAssertTrue(dependentsOfA.contains(QueryKey(IncC())))
     }
 
     // MARK: - No Deadlock on Cycles Tests
@@ -249,7 +249,7 @@ final class ParallelExecutionTests: XCTestCase {
             let counter: Counter
 
             func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                 return 42
             }
@@ -291,7 +291,8 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results.4, 42)
 
         // Should only compute once
-        XCTAssertEqual(counter.count, 1)
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
 
         // Should complete in ~0.5s (single computation) not ~2.5s (5 computations)
         XCTAssertLessThan(elapsed, 1.0)
@@ -305,7 +306,7 @@ final class ParallelExecutionTests: XCTestCase {
             let counter: Counter
 
             func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                 return 100
             }
@@ -363,7 +364,8 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results.2, 103)
 
         // BaseQuery should only compute once (deduplication)
-        XCTAssertEqual(counter.count, 1)
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
 
         // Should complete in ~0.5s (single BaseQuery computation) not ~1.5s (3 computations)
         XCTAssertLessThan(elapsed, 1.0)
@@ -377,7 +379,7 @@ final class ParallelExecutionTests: XCTestCase {
             let counter: Counter
 
             func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                 return 99
             }
@@ -411,7 +413,8 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results1.0, 99)
         XCTAssertEqual(results1.1, 99)
         XCTAssertEqual(results1.2, 99)
-        XCTAssertEqual(counter.count, 1)
+        let countAfterFirstBatch = await counter.value
+        XCTAssertEqual(countAfterFirstBatch, 1)
 
         // Second batch: should use cache (no computation)
         async let r4 = engine.fetch(Query1(counter: counter), with: .root)
@@ -422,7 +425,8 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(results2.0, 99)
         XCTAssertEqual(results2.1, 99)
         // Counter should still be 1 (cached)
-        XCTAssertEqual(counter.count, 1)
+        let countAfterSecondBatch = await counter.value
+        XCTAssertEqual(countAfterSecondBatch, 1)
     }
 
     func testInFlightInterceptorSequentialFetches() async throws {
@@ -433,8 +437,8 @@ final class ParallelExecutionTests: XCTestCase {
             let counter: Counter
 
             func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Int {
-                counter.count += 1
-                return counter.count * 10
+                let count = await counter.increment()
+                return count * 10
             }
 
             func hash(into hasher: inout Hasher) {
@@ -463,6 +467,7 @@ final class ParallelExecutionTests: XCTestCase {
         XCTAssertEqual(result1, 10)
         XCTAssertEqual(result2, 20)
         XCTAssertEqual(result3, 30)
-        XCTAssertEqual(counter.count, 3)
+        let count = await counter.value
+        XCTAssertEqual(count, 3)
     }
 }

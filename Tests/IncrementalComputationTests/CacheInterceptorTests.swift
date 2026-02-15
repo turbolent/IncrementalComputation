@@ -14,7 +14,7 @@ final class CacheInterceptorTests: XCTestCase {
                 with engine: E,
                 context: ExecutionContext
             ) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 return 42
             }
 
@@ -39,7 +39,8 @@ final class CacheInterceptorTests: XCTestCase {
         _ = try await engine.fetch(CountingQuery(counter: counter), with: .root)
         _ = try await engine.fetch(CountingQuery(counter: counter), with: .root)
 
-        XCTAssertEqual(counter.count, 1)  // Should only compute once
+        let count = await counter.value
+        XCTAssertEqual(count, 1)  // Should only compute once
     }
 
     func testMemoizationWithDependencies() async throws {
@@ -53,7 +54,7 @@ final class CacheInterceptorTests: XCTestCase {
                 with engine: E,
                 context: ExecutionContext
             ) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 return 10
             }
 
@@ -129,6 +130,7 @@ final class CacheInterceptorTests: XCTestCase {
         _ = try await engine.fetch(DerivedA(counter: counter), with: .root)
         _ = try await engine.fetch(DerivedB(counter: counter), with: .root)
 
-        XCTAssertEqual(counter.count, 1)  // Base should only compute once
+        let count = await counter.value
+        XCTAssertEqual(count, 1)  // Base should only compute once
     }
 }

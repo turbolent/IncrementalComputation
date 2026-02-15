@@ -73,7 +73,7 @@ final class SpreadsheetTests: XCTestCase {
                 with engine: E,
                 context: ExecutionContext
             ) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 return 10
             }
 
@@ -159,7 +159,8 @@ final class SpreadsheetTests: XCTestCase {
         )
         _ = try await engine.fetch(CellD(counter: counter), with: .root)
 
-        XCTAssertEqual(counter.count, 1)
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
     }
 
     func testSpreadsheetWithoutMemoization() async throws {
@@ -174,7 +175,7 @@ final class SpreadsheetTests: XCTestCase {
                 with engine: E,
                 context: ExecutionContext
             ) async throws -> Int {
-                counter.count += 1
+                _ = await counter.increment()
                 return 10
             }
 
@@ -256,6 +257,7 @@ final class SpreadsheetTests: XCTestCase {
         let engine = ComposedEngine(interceptors: [])
         _ = try await engine.fetch(CellD(counter: counter), with: .root)
 
-        XCTAssertEqual(counter.count, 2)
+        let count = await counter.value
+        XCTAssertEqual(count, 2)
     }
 }
