@@ -16,7 +16,7 @@ jobs:
     - name: Build
       run: swift build -v
     - name: Run tests
-      run: swift test -v
+      run: swift test -v -Xswiftc -swift-version -Xswiftc 6 -Xswiftc -strict-concurrency=complete
 
   Linux:
     name: Linux
@@ -28,4 +28,4 @@ jobs:
     - name: Build
       run: swift build -v
     - name: Run tests
-      run: swift test -v
+      run: swift test -v -Xswiftc -swift-version -Xswiftc 6 -Xswiftc -strict-concurrency=complete
