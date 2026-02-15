@@ -1,10 +1,12 @@
-import XCTest
+import Testing
+import Foundation
 import IncrementalComputation
 
-final class ParallelExecutionTests: XCTestCase {
+struct ParallelExecutionTests {
 
     // MARK: - Parallel Independent Queries Tests
 
+    @Test("Parallel Independent Queries")
     func testParallelIndependentQueries() async throws {
 
         struct QueryA: Query {
@@ -56,17 +58,18 @@ final class ParallelExecutionTests: XCTestCase {
 
         let elapsed = Date().timeIntervalSince(startTime)
 
-        XCTAssertEqual(results.0, 1)
-        XCTAssertEqual(results.1, 2)
-        XCTAssertEqual(results.2, 3)
+        #expect(results.0 == 1)
+        #expect(results.1 == 2)
+        #expect(results.2 == 3)
 
         // Should complete in ~1s (parallel) not ~3s (serial)
         // Allow some overhead but verify it's closer to parallel than serial
-        XCTAssertLessThan(elapsed, 1.5) // 1.5s threshold (generous for CI)
+        #expect(elapsed < 1.5) // 1.5s threshold (generous for CI)
     }
 
     // MARK: - Parallel Queries with Shared Dependency Tests
 
+    @Test("Parallel Queries With Shared Dependency")
     func testParallelQueriesWithSharedDependency() async throws {
 
         struct BaseQuery: Query {
@@ -139,16 +142,17 @@ final class ParallelExecutionTests: XCTestCase {
 
         let elapsed = Date().timeIntervalSince(startTime)
 
-        XCTAssertEqual(results.0, 11)
-        XCTAssertEqual(results.1, 12)
+        #expect(results.0 == 11)
+        #expect(results.1 == 12)
 
         // Should complete in ~1s (parallel) not ~2s (serial)
         // Allow some overhead but verify it's closer to parallel than serial
-        XCTAssertLessThan(elapsed, 1.5) // 1.5s threshold (generous for CI)
+        #expect(elapsed < 1.5) // 1.5s threshold (generous for CI)
     }
 
     // MARK: - Concurrent Cache Access Tests
 
+    @Test("Concurrent Cache Access")
     func testConcurrentCacheAccess() async throws {
         let cache = CacheInterceptor()
         let engine = ComposedEngine(interceptors: [cache])
@@ -177,20 +181,21 @@ final class ParallelExecutionTests: XCTestCase {
 
         let results = try await (r1, r2, r3, r4, r5, r6)
 
-        XCTAssertEqual(results.0, 10)
-        XCTAssertEqual(results.1, 20)
-        XCTAssertEqual(results.2, 30)
-        XCTAssertEqual(results.3, 40)
-        XCTAssertEqual(results.4, 10)
-        XCTAssertEqual(results.5, 30)
+        #expect(results.0 == 10)
+        #expect(results.1 == 20)
+        #expect(results.2 == 30)
+        #expect(results.3 == 40)
+        #expect(results.4 == 10)
+        #expect(results.5 == 30)
 
         // Verify cache is in consistent state
         let count = await cache.count
-        XCTAssertEqual(count, 4) // 1, 2, 3, 4
+        #expect(count == 4) // 1, 2, 3, 4
     }
 
     // MARK: - Parallel Execution with Reverse Deps Tests
 
+    @Test("Parallel Execution With Reverse Deps")
     func testParallelExecutionWithReverseDeps() async throws {
         let reverseDeps = ReverseDepsInterceptor()
         let engine = ComposedEngine(interceptors: [reverseDeps])
@@ -201,17 +206,18 @@ final class ParallelExecutionTests: XCTestCase {
 
         let results = try await (r1, r2)
 
-        XCTAssertEqual(results.0, 111)
-        XCTAssertEqual(results.1, 11)
+        #expect(results.0 == 111)
+        #expect(results.1 == 11)
 
         // Verify reverse dependencies were tracked correctly
         let dependentsOfA = await reverseDeps.dependents(of: QueryKey(IncA()))
-        XCTAssertTrue(dependentsOfA.contains(QueryKey(IncB())))
-        XCTAssertTrue(dependentsOfA.contains(QueryKey(IncC())))
+        #expect(dependentsOfA.contains(QueryKey(IncB())))
+        #expect(dependentsOfA.contains(QueryKey(IncC())))
     }
 
     // MARK: - No Deadlock on Cycles Tests
 
+    @Test("No Cycle Deadlock In Parallel")
     func testNoCycleDeadlockInParallel() async throws {
         let engine = ComposedEngine(
             interceptors: [
@@ -226,14 +232,14 @@ final class ParallelExecutionTests: XCTestCase {
 
         do {
             _ = try await r1
-            XCTFail("Expected CyclicDependencyError for r1")
+            Issue.record("Expected CyclicDependencyError for r1")
         } catch is CyclicDependencyError {
             // Expected
         }
 
         do {
             _ = try await r2
-            XCTFail("Expected CyclicDependencyError for r2")
+            Issue.record("Expected CyclicDependencyError for r2")
         } catch is CyclicDependencyError {
             // Expected
         }
@@ -241,6 +247,7 @@ final class ParallelExecutionTests: XCTestCase {
 
     // MARK: - InFlightInterceptor Tests
 
+    @Test("In Flight Interceptor Deduplication")
     func testInFlightInterceptorDeduplication() async throws {
 
         struct ExpensiveQuery: Query {
@@ -284,20 +291,21 @@ final class ParallelExecutionTests: XCTestCase {
         let elapsed = Date().timeIntervalSince(startTime)
 
         // All fetches should return the same value
-        XCTAssertEqual(results.0, 42)
-        XCTAssertEqual(results.1, 42)
-        XCTAssertEqual(results.2, 42)
-        XCTAssertEqual(results.3, 42)
-        XCTAssertEqual(results.4, 42)
+        #expect(results.0 == 42)
+        #expect(results.1 == 42)
+        #expect(results.2 == 42)
+        #expect(results.3 == 42)
+        #expect(results.4 == 42)
 
         // Should only compute once
         let count = await counter.value
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
 
         // Should complete in ~0.5s (single computation) not ~2.5s (5 computations)
-        XCTAssertLessThan(elapsed, 1.0)
+        #expect(elapsed < 1.0)
     }
 
+    @Test("In Flight Interceptor With Shared Dependency")
     func testInFlightInterceptorWithSharedDependency() async throws {
 
         struct BaseQuery: Query {
@@ -359,18 +367,19 @@ final class ParallelExecutionTests: XCTestCase {
 
         let elapsed = Date().timeIntervalSince(startTime)
 
-        XCTAssertEqual(results.0, 101)
-        XCTAssertEqual(results.1, 102)
-        XCTAssertEqual(results.2, 103)
+        #expect(results.0 == 101)
+        #expect(results.1 == 102)
+        #expect(results.2 == 103)
 
         // BaseQuery should only compute once (deduplication)
         let count = await counter.value
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
 
         // Should complete in ~0.5s (single BaseQuery computation) not ~1.5s (3 computations)
-        XCTAssertLessThan(elapsed, 1.0)
+        #expect(elapsed < 1.0)
     }
 
+    @Test("In Flight Interceptor With Cache")
     func testInFlightInterceptorWithCache() async throws {
 
         struct Query1: Query {
@@ -410,11 +419,11 @@ final class ParallelExecutionTests: XCTestCase {
 
         let results1 = try await (r1, r2, r3)
 
-        XCTAssertEqual(results1.0, 99)
-        XCTAssertEqual(results1.1, 99)
-        XCTAssertEqual(results1.2, 99)
+        #expect(results1.0 == 99)
+        #expect(results1.1 == 99)
+        #expect(results1.2 == 99)
         let countAfterFirstBatch = await counter.value
-        XCTAssertEqual(countAfterFirstBatch, 1)
+        #expect(countAfterFirstBatch == 1)
 
         // Second batch: should use cache (no computation)
         async let r4 = engine.fetch(Query1(counter: counter), with: .root)
@@ -422,13 +431,14 @@ final class ParallelExecutionTests: XCTestCase {
 
         let results2 = try await (r4, r5)
 
-        XCTAssertEqual(results2.0, 99)
-        XCTAssertEqual(results2.1, 99)
+        #expect(results2.0 == 99)
+        #expect(results2.1 == 99)
         // Counter should still be 1 (cached)
         let countAfterSecondBatch = await counter.value
-        XCTAssertEqual(countAfterSecondBatch, 1)
+        #expect(countAfterSecondBatch == 1)
     }
 
+    @Test("In Flight Interceptor Sequential Fetches")
     func testInFlightInterceptorSequentialFetches() async throws {
 
         struct Query2: Query {
@@ -464,10 +474,10 @@ final class ParallelExecutionTests: XCTestCase {
         let result2 = try await engine.fetch(Query2(counter: counter), with: .root)
         let result3 = try await engine.fetch(Query2(counter: counter), with: .root)
 
-        XCTAssertEqual(result1, 10)
-        XCTAssertEqual(result2, 20)
-        XCTAssertEqual(result3, 30)
+        #expect(result1 == 10)
+        #expect(result2 == 20)
+        #expect(result3 == 30)
         let count = await counter.value
-        XCTAssertEqual(count, 3)
+        #expect(count == 3)
     }
 }

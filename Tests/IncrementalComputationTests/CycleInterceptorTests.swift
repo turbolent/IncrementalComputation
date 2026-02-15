@@ -1,8 +1,9 @@
-import XCTest
+import Testing
 import IncrementalComputation
 
-final class CycleInterceptorTests: XCTestCase {
+struct CycleInterceptorTests {
 
+    @Test("Cycle Detection")
     func testCycleDetection() async throws {
         let engine = ComposedEngine(
             interceptors: [
@@ -10,16 +11,12 @@ final class CycleInterceptorTests: XCTestCase {
             ]
         )
 
-        do {
+        await #expect(throws: CyclicDependencyError.self) {
             _ = try await engine.fetch(CyclicQueryA(), with: .root)
-            XCTFail("Expected CyclicDependencyError")
-        } catch is CyclicDependencyError {
-            // Expected
-        } catch {
-            XCTFail("Expected CyclicDependencyError, got \(error)")
         }
     }
 
+    @Test("Self Referential Cycle Detection")
     func testSelfReferentialCycleDetection() async throws {
         let engine = ComposedEngine(
             interceptors: [
@@ -27,16 +24,12 @@ final class CycleInterceptorTests: XCTestCase {
             ]
         )
 
-        do {
+        await #expect(throws: CyclicDependencyError.self) {
             _ = try await engine.fetch(SelfReferentialQuery(), with: .root)
-            XCTFail("Expected CyclicDependencyError")
-        } catch is CyclicDependencyError {
-            // Expected
-        } catch {
-            XCTFail("Expected CyclicDependencyError, got \(error)")
         }
     }
 
+    @Test("No Cycle With Valid Query")
     func testNoCycleWithValidQuery() async throws {
         let engine = ComposedEngine(
             interceptors: [
@@ -44,7 +37,7 @@ final class CycleInterceptorTests: XCTestCase {
             ]
         )
         let result = try await engine.fetch(DerivedQuery(), with: .root)
-        XCTAssertEqual(result, 15)
+        #expect(result == 15)
     }
 
 }

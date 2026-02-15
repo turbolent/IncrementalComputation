@@ -1,16 +1,18 @@
-import XCTest
+import Testing
 import IncrementalComputation
 
-final class QueryKeyTests: XCTestCase {
+struct QueryKeyTests {
 
+    @Test("Same Query Value Produces Equal Key")
     func testSameQueryValueProducesEqualKey() {
         let lhs = QueryKey(IncA())
         let rhs = QueryKey(IncA())
 
-        XCTAssertEqual(lhs, rhs)
-        XCTAssertEqual(lhs.hashValue, rhs.hashValue)
+        #expect(lhs == rhs)
+        #expect(lhs.hashValue == rhs.hashValue)
     }
 
+    @Test("Different Query Values Produce Different Keys")
     func testDifferentQueryValuesProduceDifferentKeys() {
         struct ParamQuery: Query {
             typealias Value = Int
@@ -27,13 +29,14 @@ final class QueryKeyTests: XCTestCase {
         let lhs = QueryKey(ParamQuery(id: 1))
         let rhs = QueryKey(ParamQuery(id: 2))
 
-        XCTAssertNotEqual(lhs, rhs)
+        #expect(lhs != rhs)
     }
 
+    @Test("Different Query Types Produce Different Keys")
     func testDifferentQueryTypesProduceDifferentKeys() {
         let lhs = QueryKey(IncA())
         let rhs = QueryKey(IncB())
 
-        XCTAssertNotEqual(lhs, rhs)
+        #expect(lhs != rhs)
     }
 }

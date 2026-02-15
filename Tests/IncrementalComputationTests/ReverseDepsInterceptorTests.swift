@@ -1,8 +1,9 @@
-import XCTest
+import Testing
 import IncrementalComputation
 
-final class ReverseDepsInterceptorTests: XCTestCase {
+struct ReverseDepsInterceptorTests {
 
+    @Test("Reverse Dependency Tracking")
     func testReverseDependencyTracking() async throws {
         let reverseDeps = ReverseDepsInterceptor()
         let engine = ComposedEngine(
@@ -15,10 +16,11 @@ final class ReverseDepsInterceptorTests: XCTestCase {
 
         // Check that dependencies were tracked
         let dependentsOfA = await reverseDeps.dependents(of: QueryKey(IncA()))
-        XCTAssertTrue(dependentsOfA.contains(QueryKey(IncB())))
-        XCTAssertTrue(dependentsOfA.contains(QueryKey(IncC())))
+        #expect(dependentsOfA.contains(QueryKey(IncB())))
+        #expect(dependentsOfA.contains(QueryKey(IncC())))
     }
 
+    @Test("Invalidation")
     func testInvalidation() async throws {
         let cache = CacheInterceptor()
         let reverseDeps = ReverseDepsInterceptor()
@@ -30,20 +32,20 @@ final class ReverseDepsInterceptorTests: XCTestCase {
         )
 
         let result1 = try await engine.fetch(IncC(), with: .root)
-        XCTAssertEqual(result1, 111)
+        #expect(result1 == 111)
 
         let aCached = await cache.isCached(query: QueryKey(IncA()))
         let bCached = await cache.isCached(query: QueryKey(IncB()))
         let cCached = await cache.isCached(query: QueryKey(IncC()))
-        XCTAssertTrue(aCached)
-        XCTAssertTrue(bCached)
-        XCTAssertTrue(cCached)
+        #expect(aCached)
+        #expect(bCached)
+        #expect(cCached)
 
         // Invalidate A - should also invalidate B and C
         let invalidated = await reverseDeps.invalidate(query: QueryKey(IncA()))
-        XCTAssertTrue(invalidated.contains(QueryKey(IncA())))
-        XCTAssertTrue(invalidated.contains(QueryKey(IncB())))
-        XCTAssertTrue(invalidated.contains(QueryKey(IncC())))
+        #expect(invalidated.contains(QueryKey(IncA())))
+        #expect(invalidated.contains(QueryKey(IncB())))
+        #expect(invalidated.contains(QueryKey(IncC())))
 
         // Clear invalidated entries from cache
         for query in invalidated {
@@ -53,11 +55,12 @@ final class ReverseDepsInterceptorTests: XCTestCase {
         let aNotCached = await cache.isCached(query: QueryKey(IncA()))
         let bNotCached = await cache.isCached(query: QueryKey(IncB()))
         let cNotCached = await cache.isCached(query: QueryKey(IncC()))
-        XCTAssertFalse(aNotCached)
-        XCTAssertFalse(bNotCached)
-        XCTAssertFalse(cNotCached)
+        #expect(!(aNotCached))
+        #expect(!(bNotCached))
+        #expect(!(cNotCached))
     }
 
+    @Test("Partial Invalidation")
     func testPartialInvalidation() async throws {
         let cache = CacheInterceptor()
         let reverseDeps = ReverseDepsInterceptor()
@@ -72,15 +75,16 @@ final class ReverseDepsInterceptorTests: XCTestCase {
 
         // Invalidate B - should also invalidate C but NOT A
         let invalidated = await reverseDeps.invalidate(query: QueryKey(IncB()))
-        XCTAssertFalse(invalidated.contains(QueryKey(IncA())))
-        XCTAssertTrue(invalidated.contains(QueryKey(IncB())))
-        XCTAssertTrue(invalidated.contains(QueryKey(IncC())))
+        #expect(!(invalidated.contains(QueryKey(IncA()))))
+        #expect(invalidated.contains(QueryKey(IncB())))
+        #expect(invalidated.contains(QueryKey(IncC())))
 
         // A should still be cached
         let aStillCached = await cache.isCached(query: QueryKey(IncA()))
-        XCTAssertTrue(aStillCached)
+        #expect(aStillCached)
     }
 
+    @Test("Convenience Overloads Match Query Key Variants")
     func testConvenienceOverloadsMatchQueryKeyVariants() async throws {
         let reverseDeps = ReverseDepsInterceptor()
         let engine = ComposedEngine(interceptors: [reverseDeps])
@@ -89,11 +93,11 @@ final class ReverseDepsInterceptorTests: XCTestCase {
 
         let dependentsViaTyped = await reverseDeps.dependents(of: IncA())
         let dependentsViaKey = await reverseDeps.dependents(of: QueryKey(IncA()))
-        XCTAssertEqual(dependentsViaTyped, dependentsViaKey)
+        #expect(dependentsViaTyped == dependentsViaKey)
 
         let directViaTyped = await reverseDeps.directDependents(of: IncA())
         let directViaKey = await reverseDeps.directDependents(of: QueryKey(IncA()))
-        XCTAssertEqual(directViaTyped, directViaKey)
+        #expect(directViaTyped == directViaKey)
 
         let invalidatedViaTyped = await reverseDeps.invalidate(query: IncA())
 
@@ -102,6 +106,6 @@ final class ReverseDepsInterceptorTests: XCTestCase {
         _ = try await engine2.fetch(IncC(), with: .root)
         let invalidatedViaKey = await reverseDeps2.invalidate(query: QueryKey(IncA()))
 
-        XCTAssertEqual(invalidatedViaTyped, invalidatedViaKey)
+        #expect(invalidatedViaTyped == invalidatedViaKey)
     }
 }

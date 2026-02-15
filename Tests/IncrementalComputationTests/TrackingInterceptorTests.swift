@@ -1,8 +1,9 @@
-import XCTest
+import Testing
 import IncrementalComputation
 
-final class TrackingInterceptorTests: XCTestCase {
+struct TrackingInterceptorTests {
 
+    @Test("Tracking")
     func testTracking() async throws {
         let tracker = TrackingInterceptor()
         let engine = ComposedEngine(
@@ -15,15 +16,16 @@ final class TrackingInterceptorTests: XCTestCase {
         _ = try await engine.fetch(DerivedQuery(), with: .root)
 
         let derivedWasFetched = await tracker.wasFetched(query: QueryKey(DerivedQuery()))
-        XCTAssertTrue(derivedWasFetched)
+        #expect(derivedWasFetched)
 
         let baseWasFetched = await tracker.wasFetched(query: QueryKey(BaseQuery()))
-        XCTAssertTrue(baseWasFetched)
+        #expect(baseWasFetched)
 
         let count = await tracker.count
-        XCTAssertEqual(count, 2)
+        #expect(count == 2)
     }
 
+    @Test("Convenience Overload Matches Query Key Variant")
     func testConvenienceOverloadMatchesQueryKeyVariant() async throws {
         let tracker = TrackingInterceptor()
         let engine = ComposedEngine(interceptors: [tracker])
@@ -32,13 +34,13 @@ final class TrackingInterceptorTests: XCTestCase {
 
         let typedDerived = await tracker.wasFetched(query: DerivedQuery())
         let keyDerived = await tracker.wasFetched(query: QueryKey(DerivedQuery()))
-        XCTAssertEqual(typedDerived, keyDerived)
-        XCTAssertTrue(typedDerived)
+        #expect(typedDerived == keyDerived)
+        #expect(typedDerived)
 
         let typedBase = await tracker.wasFetched(query: BaseQuery())
         let keyBase = await tracker.wasFetched(query: QueryKey(BaseQuery()))
-        XCTAssertEqual(typedBase, keyBase)
-        XCTAssertTrue(typedBase)
+        #expect(typedBase == keyBase)
+        #expect(typedBase)
     }
 
 }

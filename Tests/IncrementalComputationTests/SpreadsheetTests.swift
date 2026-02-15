@@ -1,8 +1,9 @@
-import XCTest
+import Testing
 import IncrementalComputation
 
-final class SpreadsheetTests: XCTestCase {
+struct SpreadsheetTests {
 
+    @Test("Spreadsheet Calculation")
     func testSpreadsheetCalculation() async throws {
 
         struct CellA: Query {
@@ -59,9 +60,10 @@ final class SpreadsheetTests: XCTestCase {
             ]
         )
         let result = try await engine.fetch(CellD(), with: .root)
-        XCTAssertEqual(result, 70)
+        #expect(result == 70)
     }
 
+    @Test("Spreadsheet Memoization")
     func testSpreadsheetMemoization() async throws {
 
         struct CellA: Query {
@@ -160,9 +162,10 @@ final class SpreadsheetTests: XCTestCase {
         _ = try await engine.fetch(CellD(counter: counter), with: .root)
 
         let count = await counter.value
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 
+    @Test("Spreadsheet Without Memoization")
     func testSpreadsheetWithoutMemoization() async throws {
         let counter = Counter()
 
@@ -258,6 +261,6 @@ final class SpreadsheetTests: XCTestCase {
         _ = try await engine.fetch(CellD(counter: counter), with: .root)
 
         let count = await counter.value
-        XCTAssertEqual(count, 2)
+        #expect(count == 2)
     }
 }
