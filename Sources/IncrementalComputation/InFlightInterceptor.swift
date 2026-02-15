@@ -3,18 +3,18 @@ public actor InFlightInterceptor: QueryInterceptor {
 
     /// Represents an in-flight computation with waiting continuations
     private final class InFlightComputation {
-        var continuations: [CheckedContinuation<Any, Error>] = []
+        var continuations: [CheckedContinuation<any Sendable, Error>] = []
     }
 
     /// Tracks queries currently being computed
-    private var inFlightComputations: [AnyHashable: InFlightComputation] = [:]
+    private var inFlightComputations: [QueryKey: InFlightComputation] = [:]
 
     public init() {}
 
     public func willFetch(
-        query: AnyHashable,
+        query: QueryKey,
         context: ExecutionContext
-    ) async throws -> Any? {
+    ) async throws -> (any Sendable)? {
 
         // Check if query is already being computed
         if let inFlightComputation = self.inFlightComputations[query] {
@@ -32,8 +32,8 @@ public actor InFlightInterceptor: QueryInterceptor {
     }
 
     public func didCompute(
-        query: AnyHashable,
-        value: Any,
+        query: QueryKey,
+        value: any Sendable,
         context: ExecutionContext
     ) async {
         // Resume all waiting continuations with the computed value

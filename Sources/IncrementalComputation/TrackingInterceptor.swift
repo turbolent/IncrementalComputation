@@ -2,29 +2,34 @@
 /// Useful for debugging and testing to see what queries were executed.
 public actor TrackingInterceptor: QueryInterceptor {
 
-    public private(set) var fetchedQueries: Set<AnyHashable> = []
+    public private(set) var fetchedQueries: Set<QueryKey> = []
 
     public init() {}
 
     public func willFetch(
-        query: AnyHashable,
+        query: QueryKey,
         context: ExecutionContext
-    ) async throws -> Any? {
+    ) async throws -> (any Sendable)? {
         self.fetchedQueries.insert(query)
         return nil
     }
 
     public func didCompute(
-        query: AnyHashable,
-        value: Any,
+        query: QueryKey,
+        value: any Sendable,
         context: ExecutionContext
     ) async {
         // No-op
     }
 
     /// Checks if a specific query was fetched.
-    public func wasFetched(query: AnyHashable) -> Bool {
+    public func wasFetched(query: QueryKey) -> Bool {
         return self.fetchedQueries.contains(query)
+    }
+
+    /// Checks if a specific query was fetched.
+    public func wasFetched<Q: Query>(query: Q) -> Bool {
+        self.wasFetched(query: QueryKey(query))
     }
 
     /// Returns the count of fetched queries.

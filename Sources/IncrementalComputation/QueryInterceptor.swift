@@ -8,9 +8,9 @@ public protocol QueryInterceptor: Actor {
     /// - Returns: A cached value if available, or nil to continue with computation
     /// - Throws: Can throw (e.g., CyclicDependencyError for cycle detection)
     func willFetch(
-        query: AnyHashable,
+        query: QueryKey,
         context: ExecutionContext
-    ) async throws -> Any?
+    ) async throws -> (any Sendable)?
 
     /// Called after a query value has been computed.
     /// - Parameters:
@@ -18,8 +18,8 @@ public protocol QueryInterceptor: Actor {
     ///   - value: The computed value
     ///   - context: The execution context for this query chain
     func didCompute(
-        query: AnyHashable,
-        value: Any,
+        query: QueryKey,
+        value: any Sendable,
         context: ExecutionContext
     ) async
 }

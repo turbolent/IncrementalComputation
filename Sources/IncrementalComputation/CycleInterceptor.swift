@@ -6,9 +6,9 @@ public actor CycleInterceptor: QueryInterceptor {
     public init() {}
 
     public func willFetch(
-        query: AnyHashable,
+        query: QueryKey,
         context: ExecutionContext
-    ) async throws -> Any? {
+    ) async throws -> (any Sendable)? {
 
         // Check if this query is already in the execution chain
         if context.contains(query) {
@@ -19,8 +19,8 @@ public actor CycleInterceptor: QueryInterceptor {
     }
 
     public func didCompute(
-        query: AnyHashable,
-        value: Any,
+        query: QueryKey,
+        value: any Sendable,
         context: ExecutionContext
     ) {
         // No-op
@@ -28,7 +28,7 @@ public actor CycleInterceptor: QueryInterceptor {
 }
 
 /// Error thrown when a cyclic dependency is detected.
-public struct CyclicDependencyError: Error, CustomStringConvertible {
+public struct CyclicDependencyError: Error, CustomStringConvertible, Sendable {
 
     public var description: String {
         return "Cyclic dependency detected"

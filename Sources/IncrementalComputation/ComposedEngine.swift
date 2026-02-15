@@ -23,15 +23,15 @@ public actor ComposedEngine: QueryEngine {
         with parentContext: ExecutionContext
     ) async throws -> Q.Value {
 
-        let typeErasedQuery = AnyHashable(query)
+        let queryKey = QueryKey(query)
 
-        let childContext = parentContext.child(for: typeErasedQuery)
+        let childContext = parentContext.child(for: queryKey)
 
         // Notify all interceptors before computation
 
         for interceptor in self.interceptors {
             if let cached = try await interceptor.willFetch(
-                query: typeErasedQuery,
+                query: queryKey,
                 context: parentContext
             ) {
                 return cached as! Q.Value
@@ -49,7 +49,7 @@ public actor ComposedEngine: QueryEngine {
 
         for interceptor in self.interceptors.reversed() {
             await interceptor.didCompute(
-                query: typeErasedQuery,
+                query: queryKey,
                 value: value,
                 context: childContext
             )

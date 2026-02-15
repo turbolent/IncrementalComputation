@@ -74,8 +74,8 @@ let user = try await incremental.fetch(GetUser(id: 1), with: .root)
 A query defines a request for a value and how to compute it.
 
 ```swift
-protocol Query: Hashable {
-    associatedtype Value
+protocol Query: Hashable, Sendable {
+    associatedtype Value: Sendable
 
     func compute<E: QueryEngine>(with engine: E, context: ExecutionContext) async throws -> Value
 }
@@ -88,7 +88,7 @@ protocol Query: Hashable {
 An engine executes queries.
 
 ```swift
-protocol QueryEngine {
+protocol QueryEngine: Actor {
     func fetch<Q: Query>(_ query: Q, with context: ExecutionContext) async throws -> Q.Value
 }
 ```
@@ -153,10 +153,10 @@ Interceptors must be actors to provide thread-safe access.
 protocol QueryInterceptor: Actor {
 
     /// Called before fetching a query.
-    func willFetch(query: AnyHashable, context: ExecutionContext) async throws -> Any?
+    func willFetch(query: QueryKey, context: ExecutionContext) async throws -> (any Sendable)?
 
     /// Called after a query value has been computed.
-    func didCompute(query: AnyHashable, value: Any, context: ExecutionContext) async
+    func didCompute(query: QueryKey, value: any Sendable, context: ExecutionContext) async
 }
 ```
 
@@ -171,7 +171,7 @@ let engine = ComposedEngine(interceptors: [cache])
 _ = try await engine.fetch(MyQuery(), with: .root)
 _ = try await engine.fetch(MyQuery(), with: .root)  // Returns cached result
 
-let isCached = await cache.isCached(query: AnyHashable(MyQuery()))  // true
+let isCached = await cache.isCached(query: MyQuery())  // true
 let count = await cache.count   // 1
 await cache.clear()  // Clear all cached values
 ```
@@ -202,11 +202,11 @@ let engine = ComposedEngine(interceptors: [cache, reverseDeps])
 _ = try await engine.fetch(CellD(), with: .root)  // D depends on B, C; B, C depend on A
 
 // Find all queries that depend on A
-let dependents = await reverseDeps.dependents(of: AnyHashable(CellA()))
+let dependents = await reverseDeps.dependents(of: CellA())
 // Returns: {B, C, D}
 
 // Invalidate A and all its dependents
-let invalidated = await reverseDeps.invalidate(query: AnyHashable(CellA()))
+let invalidated = await reverseDeps.invalidate(query: CellA())
 for query in invalidated {
     await cache.clear(query: query)
 }
@@ -223,7 +223,7 @@ let engine = ComposedEngine(interceptors: [tracker])
 _ = try await engine.fetch(CellD(), with: .root)
 
 await tracker.count  // Number of unique queries fetched
-await tracker.wasFetched(query: AnyHashable(CellA()))  // true
+await tracker.wasFetched(query: CellA())  // true
 await tracker.reset()  // Clear tracking
 ```
 
@@ -275,12 +275,12 @@ Create your own interceptor by implementing `QueryInterceptor` as an actor:
 ```swift
 actor LoggingInterceptor: QueryInterceptor {
 
-    func willFetch(query: AnyHashable, context: ExecutionContext) async throws -> Any? {
+    func willFetch(query: QueryKey, context: ExecutionContext) async throws -> (any Sendable)? {
         print("Fetching: \(query)")
         return nil  // Continue with computation
     }
 
-    func didCompute(query: AnyHashable, value: Any, context: ExecutionContext) async {
+    func didCompute(query: QueryKey, value: any Sendable, context: ExecutionContext) async {
         print("Computed: \(query) = \(value)")
     }
 }

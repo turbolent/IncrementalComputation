@@ -1,8 +1,9 @@
-import XCTest
+import Testing
 import IncrementalComputation
 
-final class CancellationTests: XCTestCase {
+struct CancellationTests {
 
+    @Test("Task Cancellation Stops Long Running Query")
     func testTaskCancellationStopsLongRunningQuery() async {
         struct LongRunningQuery: Query {
             typealias Value = Int
@@ -27,13 +28,8 @@ final class CancellationTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
         task.cancel()
 
-        do {
+        await #expect(throws: CancellationError.self) {
             _ = try await task.value
-            XCTFail("Expected cancellation to throw")
-        } catch is CancellationError {
-            // Expected path.
-        } catch {
-            XCTFail("Unexpected error: \(error)")
         }
     }
 }
