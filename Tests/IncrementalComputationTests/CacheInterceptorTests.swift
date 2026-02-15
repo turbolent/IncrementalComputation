@@ -133,4 +133,31 @@ final class CacheInterceptorTests: XCTestCase {
         let count = await counter.value
         XCTAssertEqual(count, 1)  // Base should only compute once
     }
+
+    func testConvenienceOverloadsMatchQueryKeyVariants() async throws {
+        let cache = CacheInterceptor()
+        let engine = ComposedEngine(interceptors: [cache])
+
+        _ = try await engine.fetch(IncA(), with: .root)
+
+        let cachedViaTyped = await cache.isCached(query: IncA())
+        let cachedViaKey = await cache.isCached(query: QueryKey(IncA()))
+        XCTAssertEqual(cachedViaTyped, cachedViaKey)
+        XCTAssertTrue(cachedViaTyped)
+
+        await cache.clear(query: IncA())
+
+        let afterTypedClearViaTyped = await cache.isCached(query: IncA())
+        let afterTypedClearViaKey = await cache.isCached(query: QueryKey(IncA()))
+        XCTAssertEqual(afterTypedClearViaTyped, afterTypedClearViaKey)
+        XCTAssertFalse(afterTypedClearViaTyped)
+
+        _ = try await engine.fetch(IncA(), with: .root)
+        await cache.clear(query: QueryKey(IncA()))
+
+        let afterKeyClearViaTyped = await cache.isCached(query: IncA())
+        let afterKeyClearViaKey = await cache.isCached(query: QueryKey(IncA()))
+        XCTAssertEqual(afterKeyClearViaTyped, afterKeyClearViaKey)
+        XCTAssertFalse(afterKeyClearViaTyped)
+    }
 }

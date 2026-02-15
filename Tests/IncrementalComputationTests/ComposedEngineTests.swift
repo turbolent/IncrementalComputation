@@ -40,13 +40,13 @@ final class ComposedEngineTests: XCTestCase {
         let cachedCount = await cache.count
         XCTAssertEqual(cachedCount, 3)
 
-        let aCached = await cache.isCached(query: AnyHashable(IncA()))
+        let aCached = await cache.isCached(query: QueryKey(IncA()))
         XCTAssert(aCached)
 
-        let bCached = await cache.isCached(query: AnyHashable(IncB()))
+        let bCached = await cache.isCached(query: QueryKey(IncB()))
         XCTAssert(bCached)
 
-        let cCached = await cache.isCached(query: AnyHashable(IncC()))
+        let cCached = await cache.isCached(query: QueryKey(IncC()))
         XCTAssert(cCached)
     }
 

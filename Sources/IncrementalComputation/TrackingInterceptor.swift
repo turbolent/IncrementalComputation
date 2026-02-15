@@ -27,6 +27,11 @@ public actor TrackingInterceptor: QueryInterceptor {
         return self.fetchedQueries.contains(query)
     }
 
+    /// Checks if a specific query was fetched.
+    public func wasFetched<Q: Query>(query: Q) -> Bool {
+        self.wasFetched(query: QueryKey(query))
+    }
+
     /// Returns the count of fetched queries.
     public var count: Int {
         return self.fetchedQueries.count

@@ -30,9 +30,19 @@ public actor CacheInterceptor: QueryInterceptor {
         self.cache.removeValue(forKey: query)
     }
 
+    /// Clears a specific cached value.
+    public func clear<Q: Query>(query: Q) {
+        self.clear(query: QueryKey(query))
+    }
+
     /// Checks if a query is cached.
     public func isCached(query: QueryKey) -> Bool {
         return self.cache[query] != nil
+    }
+
+    /// Checks if a query is cached.
+    public func isCached<Q: Query>(query: Q) -> Bool {
+        self.isCached(query: QueryKey(query))
     }
 
     /// Number of cached queries.

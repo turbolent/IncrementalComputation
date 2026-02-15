@@ -80,4 +80,28 @@ final class ReverseDepsInterceptorTests: XCTestCase {
         let aStillCached = await cache.isCached(query: QueryKey(IncA()))
         XCTAssertTrue(aStillCached)
     }
+
+    func testConvenienceOverloadsMatchQueryKeyVariants() async throws {
+        let reverseDeps = ReverseDepsInterceptor()
+        let engine = ComposedEngine(interceptors: [reverseDeps])
+
+        _ = try await engine.fetch(IncC(), with: .root)
+
+        let dependentsViaTyped = await reverseDeps.dependents(of: IncA())
+        let dependentsViaKey = await reverseDeps.dependents(of: QueryKey(IncA()))
+        XCTAssertEqual(dependentsViaTyped, dependentsViaKey)
+
+        let directViaTyped = await reverseDeps.directDependents(of: IncA())
+        let directViaKey = await reverseDeps.directDependents(of: QueryKey(IncA()))
+        XCTAssertEqual(directViaTyped, directViaKey)
+
+        let invalidatedViaTyped = await reverseDeps.invalidate(query: IncA())
+
+        let reverseDeps2 = ReverseDepsInterceptor()
+        let engine2 = ComposedEngine(interceptors: [reverseDeps2])
+        _ = try await engine2.fetch(IncC(), with: .root)
+        let invalidatedViaKey = await reverseDeps2.invalidate(query: QueryKey(IncA()))
+
+        XCTAssertEqual(invalidatedViaTyped, invalidatedViaKey)
+    }
 }

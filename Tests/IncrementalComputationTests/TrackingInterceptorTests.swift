@@ -24,4 +24,21 @@ final class TrackingInterceptorTests: XCTestCase {
         XCTAssertEqual(count, 2)
     }
 
+    func testConvenienceOverloadMatchesQueryKeyVariant() async throws {
+        let tracker = TrackingInterceptor()
+        let engine = ComposedEngine(interceptors: [tracker])
+
+        _ = try await engine.fetch(DerivedQuery(), with: .root)
+
+        let typedDerived = await tracker.wasFetched(query: DerivedQuery())
+        let keyDerived = await tracker.wasFetched(query: QueryKey(DerivedQuery()))
+        XCTAssertEqual(typedDerived, keyDerived)
+        XCTAssertTrue(typedDerived)
+
+        let typedBase = await tracker.wasFetched(query: BaseQuery())
+        let keyBase = await tracker.wasFetched(query: QueryKey(BaseQuery()))
+        XCTAssertEqual(typedBase, keyBase)
+        XCTAssertTrue(typedBase)
+    }
+
 }

@@ -54,6 +54,11 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
         return result
     }
 
+    /// Returns all queries that transitively depend on the given query.
+    public func dependents<Q: Query>(of query: Q) -> Set<QueryKey> {
+        self.dependents(of: QueryKey(query))
+    }
+
     /// Invalidates a query and returns all queries that depend on it.
     /// Also removes the invalidated queries from the reverse dependency graph.
     @discardableResult
@@ -76,9 +81,20 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
         return invalidated
     }
 
+    /// Invalidates a query and returns all queries that depend on it.
+    @discardableResult
+    public func invalidate<Q: Query>(query: Q) -> Set<QueryKey> {
+        self.invalidate(query: QueryKey(query))
+    }
+
     /// Gets the direct reverse dependencies of a query (non-transitive).
     public func directDependents(of query: QueryKey) -> Set<QueryKey> {
         return self.reverseDeps[query] ?? []
+    }
+
+    /// Gets the direct reverse dependencies of a query (non-transitive).
+    public func directDependents<Q: Query>(of query: Q) -> Set<QueryKey> {
+        self.directDependents(of: QueryKey(query))
     }
 
     /// Returns the current reverse dependency graph (for debugging).
