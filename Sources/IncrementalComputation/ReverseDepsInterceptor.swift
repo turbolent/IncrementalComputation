@@ -5,14 +5,14 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
 
     /// Reverse dependency graph: dependency -> set of dependents.
     /// If reverseDeps[B] contains A, it means A depends on B.
-    public private(set) var reverseDeps: [AnyHashable: Set<AnyHashable>] = [:]
+    public private(set) var reverseDeps: [QueryKey: Set<QueryKey>] = [:]
 
     public init() {}
 
     public func willFetch(
-        query: AnyHashable,
+        query: QueryKey,
         context: ExecutionContext
-    ) async throws -> Any? {
+    ) async throws -> (any Sendable)? {
         // If we're inside another query,
         // record the reverse dependency to the immediate parent query
         if let parent = context.parentQuery {
@@ -22,8 +22,8 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
     }
 
     public func didCompute(
-        query: AnyHashable,
-        value: Any,
+        query: QueryKey,
+        value: any Sendable,
         context: ExecutionContext
     ) async {
         // No-op
@@ -32,10 +32,10 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
     /// Returns all queries that transitively depend on the given query.
     /// This is useful for invalidation: when `query` changes,
     /// all returned queries need to be recomputed.
-    public func dependents(of query: AnyHashable) -> Set<AnyHashable> {
-        var result = Set<AnyHashable>()
+    public func dependents(of query: QueryKey) -> Set<QueryKey> {
+        var result = Set<QueryKey>()
         var queue = [query]
-        var visited = Set<AnyHashable>()
+        var visited = Set<QueryKey>()
 
         while let current = queue.popLast() {
             guard !visited.contains(current) else {
@@ -57,8 +57,8 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
     /// Invalidates a query and returns all queries that depend on it.
     /// Also removes the invalidated queries from the reverse dependency graph.
     @discardableResult
-    public func invalidate(query: AnyHashable) -> Set<AnyHashable> {
-        var invalidated = Set<AnyHashable>()
+    public func invalidate(query: QueryKey) -> Set<QueryKey> {
+        var invalidated = Set<QueryKey>()
         var queue = [query]
 
         while let current = queue.popLast() {
@@ -77,12 +77,12 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
     }
 
     /// Gets the direct reverse dependencies of a query (non-transitive).
-    public func directDependents(of query: AnyHashable) -> Set<AnyHashable> {
+    public func directDependents(of query: QueryKey) -> Set<QueryKey> {
         return self.reverseDeps[query] ?? []
     }
 
     /// Returns the current reverse dependency graph (for debugging).
-    public var allReverseDependencies: [AnyHashable: Set<AnyHashable>] {
+    public var allReverseDependencies: [QueryKey: Set<QueryKey>] {
         return self.reverseDeps
     }
 

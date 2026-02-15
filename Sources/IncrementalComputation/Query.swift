@@ -1,6 +1,6 @@
 /// A query defines a request for a value and how to compute a value for the request.
-public protocol Query: Hashable {
-    associatedtype Value
+public protocol Query: Hashable, Sendable {
+    associatedtype Value: Sendable
 
     /// Computes the value for this query.
     /// Use `engine.fetch()` to fetch dependent queries.

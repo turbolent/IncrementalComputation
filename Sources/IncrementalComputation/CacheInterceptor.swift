@@ -1,20 +1,20 @@
 /// An interceptor that caches query results (memoization).
 /// Returns cached values on subsequent fetches of the same query.
 public actor CacheInterceptor: QueryInterceptor {
-    private var cache: [AnyHashable: Any] = [:]
+    private var cache: [QueryKey: any Sendable] = [:]
 
     public init() {}
 
     public func willFetch(
-        query: AnyHashable,
+        query: QueryKey,
         context: ExecutionContext
-    ) async throws -> Any? {
+    ) async throws -> (any Sendable)? {
         return self.cache[query]
     }
 
     public func didCompute(
-        query: AnyHashable,
-        value: Any,
+        query: QueryKey,
+        value: any Sendable,
         context: ExecutionContext
     ) async {
         self.cache[query] = value
@@ -26,12 +26,12 @@ public actor CacheInterceptor: QueryInterceptor {
     }
 
     /// Clears a specific cached value.
-    public func clear(query: AnyHashable) {
+    public func clear(query: QueryKey) {
         self.cache.removeValue(forKey: query)
     }
 
     /// Checks if a query is cached.
-    public func isCached(query: AnyHashable) -> Bool {
+    public func isCached(query: QueryKey) -> Bool {
         return self.cache[query] != nil
     }
 
