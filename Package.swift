@@ -33,5 +33,6 @@ let package = Package(
             dependencies: ["IncrementalComputation"],
             path: "Examples/Spreadsheet"
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )
