@@ -7,17 +7,16 @@ struct ReverseDepsInterceptorTests {
     func testReverseDependencyTracking() async throws {
         let reverseDeps = ReverseDepsInterceptor()
         let engine = ComposedEngine(
-            interceptors: [
-                reverseDeps
-            ]
+            interceptorChain: InterceptorChain()
+                .observing(reverseDeps)
         )
 
         _ = try await engine.fetch(IncC(), with: .root)
 
-        // Check that dependencies were tracked
-        let dependentsOfA = await reverseDeps.dependents(of: QueryKey(IncA()))
-        #expect(dependentsOfA.contains(QueryKey(IncB())))
-        #expect(dependentsOfA.contains(QueryKey(IncC())))
+        // Check the recorded dependencies.
+        let dependentsOfA = await reverseDeps.dependents(of: AnyQuery(IncA()))
+        #expect(dependentsOfA.contains(AnyQuery(IncB())))
+        #expect(dependentsOfA.contains(AnyQuery(IncC())))
     }
 
     @Test("Invalidation")
@@ -25,36 +24,35 @@ struct ReverseDepsInterceptorTests {
         let cache = CacheInterceptor()
         let reverseDeps = ReverseDepsInterceptor()
         let engine = ComposedEngine(
-            interceptors: [
-                cache,
-                reverseDeps
-            ]
+            interceptorChain: InterceptorChain()
+                .memoizing(with: cache)
+                .observing(reverseDeps)
         )
 
         let result1 = try await engine.fetch(IncC(), with: .root)
         #expect(result1 == 111)
 
-        let aCached = await cache.isCached(query: QueryKey(IncA()))
-        let bCached = await cache.isCached(query: QueryKey(IncB()))
-        let cCached = await cache.isCached(query: QueryKey(IncC()))
+        let aCached = await cache.isCached(query: AnyQuery(IncA()))
+        let bCached = await cache.isCached(query: AnyQuery(IncB()))
+        let cCached = await cache.isCached(query: AnyQuery(IncC()))
         #expect(aCached)
         #expect(bCached)
         #expect(cCached)
 
-        // Invalidate A - should also invalidate B and C
-        let invalidated = await reverseDeps.invalidate(query: QueryKey(IncA()))
-        #expect(invalidated.contains(QueryKey(IncA())))
-        #expect(invalidated.contains(QueryKey(IncB())))
-        #expect(invalidated.contains(QueryKey(IncC())))
+        // Invalidating A also invalidates B and C.
+        let invalidated = await reverseDeps.invalidate(query: AnyQuery(IncA()))
+        #expect(invalidated.contains(AnyQuery(IncA())))
+        #expect(invalidated.contains(AnyQuery(IncB())))
+        #expect(invalidated.contains(AnyQuery(IncC())))
 
-        // Clear invalidated entries from cache
+        // Clear the invalidated cache entries.
         for query in invalidated {
             await cache.clear(query: query)
         }
 
-        let aNotCached = await cache.isCached(query: QueryKey(IncA()))
-        let bNotCached = await cache.isCached(query: QueryKey(IncB()))
-        let cNotCached = await cache.isCached(query: QueryKey(IncC()))
+        let aNotCached = await cache.isCached(query: AnyQuery(IncA()))
+        let bNotCached = await cache.isCached(query: AnyQuery(IncB()))
+        let cNotCached = await cache.isCached(query: AnyQuery(IncC()))
         #expect(!(aNotCached))
         #expect(!(bNotCached))
         #expect(!(cNotCached))
@@ -65,46 +63,51 @@ struct ReverseDepsInterceptorTests {
         let cache = CacheInterceptor()
         let reverseDeps = ReverseDepsInterceptor()
         let engine = ComposedEngine(
-            interceptors: [
-                cache,
-                reverseDeps
-            ]
+            interceptorChain: InterceptorChain()
+                .memoizing(with: cache)
+                .observing(reverseDeps)
         )
 
         _ = try await engine.fetch(IncC(), with: .root)
 
-        // Invalidate B - should also invalidate C but NOT A
-        let invalidated = await reverseDeps.invalidate(query: QueryKey(IncB()))
-        #expect(!(invalidated.contains(QueryKey(IncA()))))
-        #expect(invalidated.contains(QueryKey(IncB())))
-        #expect(invalidated.contains(QueryKey(IncC())))
+        // Invalidating B also invalidates C; A remains cached.
+        let invalidated = await reverseDeps.invalidate(query: AnyQuery(IncB()))
+        #expect(!(invalidated.contains(AnyQuery(IncA()))))
+        #expect(invalidated.contains(AnyQuery(IncB())))
+        #expect(invalidated.contains(AnyQuery(IncC())))
 
-        // A should still be cached
-        let aStillCached = await cache.isCached(query: QueryKey(IncA()))
+        // A's cached result remains valid.
+        let aStillCached = await cache.isCached(query: AnyQuery(IncA()))
         #expect(aStillCached)
     }
 
     @Test("Convenience Overloads Match Query Key Variants")
-    func testConvenienceOverloadsMatchQueryKeyVariants() async throws {
+    func testConvenienceOverloadsMatchAnyQueryVariants() async throws {
         let reverseDeps = ReverseDepsInterceptor()
-        let engine = ComposedEngine(interceptors: [reverseDeps])
+        let engine = ComposedEngine(
+            interceptorChain: InterceptorChain()
+                .observing(reverseDeps)
+        )
 
         _ = try await engine.fetch(IncC(), with: .root)
 
         let dependentsViaTyped = await reverseDeps.dependents(of: IncA())
-        let dependentsViaKey = await reverseDeps.dependents(of: QueryKey(IncA()))
+        let dependentsViaKey = await reverseDeps.dependents(of: AnyQuery(IncA()))
         #expect(dependentsViaTyped == dependentsViaKey)
 
         let directViaTyped = await reverseDeps.directDependents(of: IncA())
-        let directViaKey = await reverseDeps.directDependents(of: QueryKey(IncA()))
+        let directViaKey = await reverseDeps.directDependents(of: AnyQuery(IncA()))
         #expect(directViaTyped == directViaKey)
 
         let invalidatedViaTyped = await reverseDeps.invalidate(query: IncA())
 
         let reverseDeps2 = ReverseDepsInterceptor()
-        let engine2 = ComposedEngine(interceptors: [reverseDeps2])
+        let engine2 = ComposedEngine(
+            interceptorChain: InterceptorChain()
+                .observing(reverseDeps2)
+        )
         _ = try await engine2.fetch(IncC(), with: .root)
-        let invalidatedViaKey = await reverseDeps2.invalidate(query: QueryKey(IncA()))
+        let invalidatedViaKey = await reverseDeps2.invalidate(query: AnyQuery(IncA()))
 
         #expect(invalidatedViaTyped == invalidatedViaKey)
     }

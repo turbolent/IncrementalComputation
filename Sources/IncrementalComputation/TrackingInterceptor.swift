@@ -1,43 +1,36 @@
-/// An interceptor that tracks which queries are fetched.
-/// Useful for debugging and testing to see what queries were executed.
-public actor TrackingInterceptor: QueryInterceptor {
+/// Records keys of admitted fetches for debugging and tests.
+/// Includes cache hits and validation reads, which may not execute query bodies.
+public actor TrackingInterceptor: QueryObserver {
 
-    public private(set) var fetchedQueries: Set<QueryKey> = []
+    /// Distinct queries observed since initialization or the last reset, including cache hits.
+    public private(set) var fetchedQueries: Set<AnyQuery> = []
 
-    public init() {}
+    public init() {
+    }
 
     public func willFetch(
-        query: QueryKey,
+        query: AnyQuery,
         context: ExecutionContext
-    ) async throws -> (any Sendable)? {
+    ) async throws {
         self.fetchedQueries.insert(query)
-        return nil
     }
 
-    public func didCompute(
-        query: QueryKey,
-        value: any Sendable,
-        context: ExecutionContext
-    ) async {
-        // No-op
-    }
-
-    /// Checks if a specific query was fetched.
-    public func wasFetched(query: QueryKey) -> Bool {
+    /// Returns whether this query was fetched.
+    public func wasFetched(query: AnyQuery) -> Bool {
         return self.fetchedQueries.contains(query)
     }
 
-    /// Checks if a specific query was fetched.
+    /// Returns whether this query was fetched.
     public func wasFetched<Q: Query>(query: Q) -> Bool {
-        self.wasFetched(query: QueryKey(query))
+        self.wasFetched(query: AnyQuery(query))
     }
 
-    /// Returns the count of fetched queries.
+    /// Number of distinct queries fetched.
     public var count: Int {
         return self.fetchedQueries.count
     }
 
-    /// Resets tracking.
+    /// Clears the recorded query keys.
     public func reset() {
         self.fetchedQueries.removeAll()
     }

@@ -29,9 +29,8 @@ struct CacheInterceptorTests {
         }
 
         let engine = ComposedEngine(
-            interceptors: [
-                CacheInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .memoizing(with: CacheInterceptor())
         )
 
         let counter = Counter()
@@ -122,9 +121,8 @@ struct CacheInterceptorTests {
         }
 
         let engine = ComposedEngine(
-            interceptors: [
-                CacheInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .memoizing(with: CacheInterceptor())
         )
 
         let counter = Counter()
@@ -137,29 +135,32 @@ struct CacheInterceptorTests {
     }
 
     @Test("Convenience Overloads Match Query Key Variants")
-    func testConvenienceOverloadsMatchQueryKeyVariants() async throws {
+    func testConvenienceOverloadsMatchAnyQueryVariants() async throws {
         let cache = CacheInterceptor()
-        let engine = ComposedEngine(interceptors: [cache])
+        let engine = ComposedEngine(
+            interceptorChain: InterceptorChain()
+                .memoizing(with: cache)
+        )
 
         _ = try await engine.fetch(IncA(), with: .root)
 
         let cachedViaTyped = await cache.isCached(query: IncA())
-        let cachedViaKey = await cache.isCached(query: QueryKey(IncA()))
+        let cachedViaKey = await cache.isCached(query: AnyQuery(IncA()))
         #expect(cachedViaTyped == cachedViaKey)
         #expect(cachedViaTyped)
 
         await cache.clear(query: IncA())
 
         let afterTypedClearViaTyped = await cache.isCached(query: IncA())
-        let afterTypedClearViaKey = await cache.isCached(query: QueryKey(IncA()))
+        let afterTypedClearViaKey = await cache.isCached(query: AnyQuery(IncA()))
         #expect(afterTypedClearViaTyped == afterTypedClearViaKey)
         #expect(!(afterTypedClearViaTyped))
 
         _ = try await engine.fetch(IncA(), with: .root)
-        await cache.clear(query: QueryKey(IncA()))
+        await cache.clear(query: AnyQuery(IncA()))
 
         let afterKeyClearViaTyped = await cache.isCached(query: IncA())
-        let afterKeyClearViaKey = await cache.isCached(query: QueryKey(IncA()))
+        let afterKeyClearViaKey = await cache.isCached(query: AnyQuery(IncA()))
         #expect(afterKeyClearViaTyped == afterKeyClearViaKey)
         #expect(!(afterKeyClearViaTyped))
     }
