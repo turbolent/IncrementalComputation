@@ -1,6 +1,7 @@
 import Testing
 import IncrementalComputation
 
+@Suite(.timeLimit(.minutes(1)))
 struct CancellationTests {
 
     @Test("Task Cancellation Stops Long Running Query")
@@ -8,25 +9,29 @@ struct CancellationTests {
         struct LongRunningQuery: Query {
             typealias Value = Int
 
+            /// Holds computation until the test cancels its task.
+            let gate: TestGate
+
             func compute<E: QueryEngine>(
                 with engine: E,
                 context: ExecutionContext
             ) async throws -> Int {
-                while true {
-                    try Task.checkCancellation()
-                    try await Task.sleep(nanoseconds: 50_000_000) // 50ms
-                }
+                await gate.wait()
+                try Task.checkCancellation()
+                return 1
             }
         }
 
-        let engine = ComposedEngine(interceptors: [])
+        let engine = ComposedEngine(interceptorChain: InterceptorChain())
+        let gate = TestGate()
 
         let task = Task {
-            try await engine.fetch(LongRunningQuery(), with: .root)
+            try await engine.fetch(LongRunningQuery(gate: gate), with: .root)
         }
 
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        await gate.waitForArrivals()
         task.cancel()
+        await gate.release()
 
         await #expect(throws: CancellationError.self) {
             _ = try await task.value

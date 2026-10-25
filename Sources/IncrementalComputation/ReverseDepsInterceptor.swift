@@ -1,41 +1,36 @@
-/// An interceptor that tracks reverse dependencies.
-/// When query A depends on B, this records that B has A as a reverse dependency.
-/// This enables efficient invalidation: "what queries need recomputing if X changes?"
-public actor ReverseDepsInterceptor: QueryInterceptor {
+/// Tracks reverse dependencies to identify queries affected by a change.
+/// When query A fetches B, records A as a dependent of B, including on cache hits.
+/// Use these records to invalidate cached queries when an input changes.
+/// Tracking works before or after memoization because it runs for every attempted fetch.
+/// The graph is conservative: old edges can cause extra invalidations.
+/// `RedGreenInterceptor` instead replaces each memo's dependencies after successful execution.
+public actor ReverseDepsInterceptor: QueryObserver {
 
     /// Reverse dependency graph: dependency -> set of dependents.
-    /// If reverseDeps[B] contains A, it means A depends on B.
-    public private(set) var reverseDeps: [QueryKey: Set<QueryKey>] = [:]
+    /// If `reverseDeps[B]` contains A, then A depends on B.
+    public private(set) var reverseDeps: [AnyQuery: Set<AnyQuery>] = [:]
 
-    public init() {}
-
-    public func willFetch(
-        query: QueryKey,
-        context: ExecutionContext
-    ) async throws -> (any Sendable)? {
-        // If we're inside another query,
-        // record the reverse dependency to the immediate parent query
-        if let parent = context.parentQuery {
-            self.reverseDeps[query, default: []].insert(parent)
-        }
-        return nil
+    public init() {
     }
 
-    public func didCompute(
-        query: QueryKey,
-        value: any Sendable,
+    public func beginEvaluation(
+        query: AnyQuery,
         context: ExecutionContext
-    ) async {
-        // No-op
+    ) async throws {
+        // Record the immediate caller for computation reads.
+        // Admission can fail before observation; a caught failure is still a dependency.
+        // Validation reads check existing dependencies; they do not add new ones.
+        if !context.isValidationRead, let parent = context.callerQuery {
+            self.reverseDeps[query, default: []].insert(parent)
+        }
     }
 
     /// Returns all queries that transitively depend on the given query.
-    /// This is useful for invalidation: when `query` changes,
-    /// all returned queries need to be recomputed.
-    public func dependents(of query: QueryKey) -> Set<QueryKey> {
-        var result = Set<QueryKey>()
+    /// When `query` changes, invalidate the returned queries' cached results.
+    public func dependents(of query: AnyQuery) -> Set<AnyQuery> {
+        var result = Set<AnyQuery>()
         var queue = [query]
-        var visited = Set<QueryKey>()
+        var visited = Set<AnyQuery>()
 
         while let current = queue.popLast() {
             guard !visited.contains(current) else {
@@ -55,15 +50,15 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
     }
 
     /// Returns all queries that transitively depend on the given query.
-    public func dependents<Q: Query>(of query: Q) -> Set<QueryKey> {
-        self.dependents(of: QueryKey(query))
+    public func dependents<Q: Query>(of query: Q) -> Set<AnyQuery> {
+        self.dependents(of: AnyQuery(query))
     }
 
-    /// Invalidates a query and returns all queries that depend on it.
-    /// Also removes the invalidated queries from the reverse dependency graph.
+    /// Returns the query and its transitive dependents, removing their graph entries.
+    /// Use the returned keys to clear their cached results.
     @discardableResult
-    public func invalidate(query: QueryKey) -> Set<QueryKey> {
-        var invalidated = Set<QueryKey>()
+    public func invalidate(query: AnyQuery) -> Set<AnyQuery> {
+        var invalidated = Set<AnyQuery>()
         var queue = [query]
 
         while let current = queue.popLast() {
@@ -72,7 +67,7 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
             }
             invalidated.insert(current)
 
-            // Remove from reverse deps and queue dependents
+            // Remove this query's graph entry and visit its dependents.
             if let dependents = self.reverseDeps.removeValue(forKey: current) {
                 queue.append(contentsOf: dependents)
             }
@@ -81,24 +76,25 @@ public actor ReverseDepsInterceptor: QueryInterceptor {
         return invalidated
     }
 
-    /// Invalidates a query and returns all queries that depend on it.
+    /// Returns the query and its transitive dependents, removing their graph entries.
+    /// Use the returned keys to clear their cached results.
     @discardableResult
-    public func invalidate<Q: Query>(query: Q) -> Set<QueryKey> {
-        self.invalidate(query: QueryKey(query))
+    public func invalidate<Q: Query>(query: Q) -> Set<AnyQuery> {
+        self.invalidate(query: AnyQuery(query))
     }
 
-    /// Gets the direct reverse dependencies of a query (non-transitive).
-    public func directDependents(of query: QueryKey) -> Set<QueryKey> {
+    /// Returns the query's direct dependents.
+    public func directDependents(of query: AnyQuery) -> Set<AnyQuery> {
         return self.reverseDeps[query] ?? []
     }
 
-    /// Gets the direct reverse dependencies of a query (non-transitive).
-    public func directDependents<Q: Query>(of query: Q) -> Set<QueryKey> {
-        self.directDependents(of: QueryKey(query))
+    /// Returns the query's direct dependents.
+    public func directDependents<Q: Query>(of query: Q) -> Set<AnyQuery> {
+        self.directDependents(of: AnyQuery(query))
     }
 
-    /// Returns the current reverse dependency graph (for debugging).
-    public var allReverseDependencies: [QueryKey: Set<QueryKey>] {
+    /// Returns the current reverse dependency graph for debugging.
+    public var allReverseDependencies: [AnyQuery: Set<AnyQuery>] {
         return self.reverseDeps
     }
 

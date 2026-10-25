@@ -29,6 +29,11 @@ let package = Package(
             path: "Tests/IncrementalComputationTests"
         ),
         .executableTarget(
+            name: "MemoizationExample",
+            dependencies: ["IncrementalComputation"],
+            path: "Examples/Memoization"
+        ),
+        .executableTarget(
             name: "SpreadsheetExample",
             dependencies: ["IncrementalComputation"],
             path: "Examples/Spreadsheet"

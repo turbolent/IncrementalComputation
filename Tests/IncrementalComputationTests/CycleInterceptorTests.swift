@@ -6,9 +6,8 @@ struct CycleInterceptorTests {
     @Test("Cycle Detection")
     func testCycleDetection() async throws {
         let engine = ComposedEngine(
-            interceptors: [
-                CycleInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .observing(CycleInterceptor())
         )
 
         await #expect(throws: CyclicDependencyError.self) {
@@ -19,9 +18,8 @@ struct CycleInterceptorTests {
     @Test("Self Referential Cycle Detection")
     func testSelfReferentialCycleDetection() async throws {
         let engine = ComposedEngine(
-            interceptors: [
-                CycleInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .observing(CycleInterceptor())
         )
 
         await #expect(throws: CyclicDependencyError.self) {
@@ -32,9 +30,8 @@ struct CycleInterceptorTests {
     @Test("No Cycle With Valid Query")
     func testNoCycleWithValidQuery() async throws {
         let engine = ComposedEngine(
-            interceptors: [
-                CycleInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .observing(CycleInterceptor())
         )
         let result = try await engine.fetch(DerivedQuery(), with: .root)
         #expect(result == 15)

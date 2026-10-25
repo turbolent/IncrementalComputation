@@ -1,7 +1,7 @@
-/// An engine executes queries.
+/// Fetches query values.
 public protocol QueryEngine: Actor {
 
-    /// Fetch a query with a specific execution context.
+    /// Fetches a query using the supplied execution context.
     func fetch<Q: Query>(
         _ query: Q,
         with context: ExecutionContext

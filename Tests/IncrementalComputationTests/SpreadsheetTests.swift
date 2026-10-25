@@ -55,9 +55,8 @@ struct SpreadsheetTests {
         }
 
         let engine = ComposedEngine(
-            interceptors: [
-                CacheInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .memoizing(with: CacheInterceptor())
         )
         let result = try await engine.fetch(CellD(), with: .root)
         #expect(result == 70)
@@ -90,6 +89,7 @@ struct SpreadsheetTests {
 
         struct CellB: Query {
             typealias Value = Int
+
             let counter: Counter
 
             func compute<E: QueryEngine>(
@@ -111,6 +111,7 @@ struct SpreadsheetTests {
 
         struct CellC: Query {
             typealias Value = Int
+
             let counter: Counter
 
             func compute<E: QueryEngine>(
@@ -132,6 +133,7 @@ struct SpreadsheetTests {
 
         struct CellD: Query {
             typealias Value = Int
+
             let counter: Counter
 
             func compute<E: QueryEngine>(
@@ -155,9 +157,8 @@ struct SpreadsheetTests {
         let counter = Counter()
 
         let engine = ComposedEngine(
-            interceptors: [
-                CacheInterceptor()
-            ]
+            interceptorChain: InterceptorChain()
+                .memoizing(with: CacheInterceptor())
         )
         _ = try await engine.fetch(CellD(counter: counter), with: .root)
 
@@ -215,6 +216,7 @@ struct SpreadsheetTests {
 
         struct CellC: Query {
             typealias Value = Int
+
             let counter: Counter
 
             func compute<E: QueryEngine>(
@@ -236,6 +238,7 @@ struct SpreadsheetTests {
 
         struct CellD: Query {
             typealias Value = Int
+
             let counter: Counter
 
             func compute<E: QueryEngine>(
@@ -256,8 +259,8 @@ struct SpreadsheetTests {
             }
         }
 
-        // No memoization - using empty interceptors
-        let engine = ComposedEngine(interceptors: [])
+        // An empty chain executes every query body on every fetch.
+        let engine = ComposedEngine(interceptorChain: InterceptorChain())
         _ = try await engine.fetch(CellD(counter: counter), with: .root)
 
         let count = await counter.value
